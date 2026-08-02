@@ -1,0 +1,5626 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2f6fd0">
+<meta name="description" content="応用情報技術者試験・科目Aの計算問題を無限に生成するドリルと、待ち行列・サブネット・ページ置換の可視化シミュレータ。">
+<title>応用情報ドリル</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>/* 応用情報ドリル — 単一ファイルに埋め込まれるスタイル。
+   外部フォント・外部CSSは読み込まない（オフライン動作とストア審査のため）。 */
+
+:root {
+  color-scheme: light dark;
+
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --panel-2: #f0f2f5;
+  --text: #1a1d23;
+  --muted: #656c7a;
+  --line: #d9dee6;
+  --accent: #2f6fd0;
+  --accent-weak: #e6effc;
+  --ok: #1f8a52;
+  --ok-weak: #e2f5ea;
+  --ng: #c8403a;
+  --ng-weak: #fceceb;
+  --warn: #b8770a;
+
+  --radius: 10px;
+  --gap: 16px;
+  --maxw: 860px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --panel: #1c1f25;
+    --panel-2: #23272e;
+    --text: #e8eaed;
+    --muted: #9aa2b1;
+    --line: #333944;
+    --accent: #6ba4f0;
+    --accent-weak: #1e2c42;
+    --ok: #5fd493;
+    --ok-weak: #16301f;
+    --ng: #f0857f;
+    --ng-weak: #33191a;
+    --warn: #e0aa4a;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  /* システムフォントのみ。日本語環境で確実に出るものを並べる */
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 14px 64px;
+}
+
+/* --- ヘッダ・タブ ------------------------------------------------------ */
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
+  padding: 10px 0 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.title h1 {
+  font-size: 17px;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.title .sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tabs button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 14px;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+}
+
+.tabs button[aria-selected='true'] {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: -1px;
+}
+
+.tabs button:hover:not([aria-selected='true']) { color: var(--text); }
+
+/* --- 汎用パーツ -------------------------------------------------------- */
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-top: var(--gap);
+}
+
+button.btn {
+  appearance: none;
+  font: inherit;
+  font-size: 14px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button.btn:hover { border-color: var(--accent); }
+
+button.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+button.btn.primary:hover { opacity: 0.9; }
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.spacer { flex: 1; }
+.muted { color: var(--muted); font-size: 13px; }
+.hidden { display: none !important; }
+
+/* --- 分野フィルタ ------------------------------------------------------ */
+
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+.chip {
+  appearance: none;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* --- 問題 -------------------------------------------------------------- */
+
+.qmeta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.qmeta .badge {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 10px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.qtext {
+  font-size: 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 12px;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border-left: 3px solid var(--line);
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 14px;
+}
+
+.choices { display: grid; gap: 8px; }
+
+.choice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.choice:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-weak); }
+.choice:disabled { cursor: default; }
+
+.choice .mark {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.choice .val { flex: 1; word-break: break-word; }
+
+.choice .why {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.6;
+}
+
+.choice.correct { border-color: var(--ok); background: var(--ok-weak); }
+.choice.correct .mark { background: var(--ok); border-color: var(--ok); color: #fff; }
+.choice.wrong { border-color: var(--ng); background: var(--ng-weak); }
+.choice.wrong .mark { background: var(--ng); border-color: var(--ng); color: #fff; }
+.choice.dim { opacity: 0.65; }
+
+/* --- 解説 -------------------------------------------------------------- */
+
+.result {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+
+.verdict { font-weight: 700; margin-bottom: 10px; }
+.verdict.ok { color: var(--ok); }
+.verdict.ng { color: var(--ng); }
+
+.steps { display: grid; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+
+.steps li {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  padding: 7px 12px;
+  background: var(--panel-2);
+  border-radius: 6px;
+}
+
+.steps .lbl { color: var(--muted); flex: 0 0 auto; }
+.steps .expr { font-variant-numeric: tabular-nums; }
+.steps .eq { font-weight: 700; }
+
+.note {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--accent-weak);
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+/* --- 教える解説 --------------------------------------------------------- */
+
+.explain { display: grid; gap: 10px; margin-top: 12px; }
+
+.ex {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+  background: var(--panel-2);
+}
+
+.ex h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ex-icon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--muted);
+}
+
+.ex-body {
+  font-size: 14.5px;
+  line-height: 1.85;
+  word-break: break-word;
+}
+
+.ex-body b { font-weight: 700; }
+
+/* 種類ごとの色分け。順に読んでいけば理解が積み上がるよう、
+   「聞かれていること → 理屈 → 計算 → 注意」の並びを色でも示す。 */
+.ex.ask { border-left-color: var(--muted); }
+.ex.why-block { border-left-color: var(--accent); background: var(--accent-weak); }
+.ex.why-block .ex-icon { background: var(--accent); }
+.ex.calc { border-left-color: var(--ok); }
+.ex.calc .ex-icon { background: var(--ok); }
+/* 計算ブロックは数字を縦に揃えたいので等幅の数字を使う */
+.ex.calc .ex-body { font-variant-numeric: tabular-nums; }
+.ex.trap { border-left-color: var(--ng); background: var(--ng-weak); }
+.ex.trap .ex-icon { background: var(--ng); }
+
+/* 式だけの折りたたみ。既に理解している人の確認用 */
+.formula { margin-top: 12px; }
+
+.formula > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 6px 0;
+  user-select: none;
+}
+
+.formula > summary:hover { color: var(--text); }
+
+/* --- SVG図（PERT等） --------------------------------------------------- */
+
+/* overflow-x を付けると内部の width:100% が解決できず幅0に潰れるので、
+   width:100% を明示する（実際にSVGが 0×0 で見えなくなる不具合が出た）。 */
+.figure {
+  margin: 4px 0 14px;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.pert-svg {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  color: var(--muted);
+}
+
+.pert-svg .edges line {
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.pert-svg .edges line.crit {
+  stroke: var(--accent);
+  stroke-width: 3.5;
+}
+
+.pert-svg .nodes circle {
+  fill: var(--panel);
+  stroke: var(--muted);
+  stroke-width: 2;
+}
+
+.pert-svg text {
+  fill: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.pert-svg text.nd { text-anchor: middle; font-weight: 700; font-size: 13px; }
+.pert-svg .labels text { fill: var(--muted); font-size: 12px; text-anchor: middle; }
+
+/* --- 成績 -------------------------------------------------------------- */
+
+table.stats { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.stats th, table.stats td { padding: 9px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+table.stats th { color: var(--muted); font-weight: 600; font-size: 13px; }
+table.stats td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.bar {
+  display: block;
+  height: 6px;
+  background: var(--panel-2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+.bar > span { display: block; height: 100%; background: var(--accent); }
+
+/* --- はじめから（レッスン） -------------------------------------------- */
+
+.learn-intro h2 { font-size: 18px; margin: 0 0 10px; }
+.learn-intro p { margin: 0 0 8px; font-size: 14.5px; line-height: 1.8; }
+
+.lesson-list { display: grid; gap: 10px; margin-top: var(--gap); }
+
+.lesson-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.lesson-card:hover { border-color: var(--accent); background: var(--accent-weak); }
+.lesson-card.is-done { border-color: var(--ok); }
+
+.lc-no {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.lesson-card.is-done .lc-no { background: var(--ok); }
+
+.lc-main { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.lc-title { font-weight: 600; font-size: 15.5px; }
+.lc-sub { font-size: 12.5px; color: var(--muted); }
+
+.lc-right { flex: 0 0 auto; display: grid; gap: 3px; justify-items: end; }
+.lc-min, .lc-done { font-size: 11.5px; color: var(--muted); }
+.lc-done { color: var(--ok); font-weight: 700; }
+.lc-go { font-size: 13px; color: var(--accent); font-weight: 600; }
+
+/* 見出し行 */
+.lesson-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.lh-title { display: grid; gap: 1px; min-width: 0; }
+.lh-title strong { font-size: 15.5px; }
+.lh-title .muted { font-size: 12px; }
+button.btn.back { padding: 6px 12px; font-size: 13px; }
+button.btn.subtle { background: transparent; color: var(--muted); }
+button.btn.subtle:hover { color: var(--text); }
+
+/* 進み具合 */
+.progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pg-step {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.pg-step.now { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.pg-step.ok { border-color: var(--ok); color: var(--ok); }
+.pg-line { flex: 1; height: 1px; background: var(--line); }
+
+/* ① 読む */
+.read-count { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.read-page h3 { font-size: 17px; margin: 0 0 12px; line-height: 1.5; }
+.read-body { font-size: 15.5px; line-height: 2; word-break: break-word; }
+.read-body b { font-weight: 700; }
+
+/* ② 一緒に解く */
+.walk-intro {
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  line-height: 1.8;
+}
+
+.walk-q {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.8;
+  padding: 14px 16px;
+  background: var(--accent-weak);
+  border-radius: 8px;
+  word-break: break-word;
+}
+
+.walk-step { margin-top: 18px; }
+.ws-count { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.ws-ask { font-size: 15px; line-height: 1.8; margin-bottom: 12px; }
+
+.ws-why {
+  font-size: 14.5px;
+  line-height: 1.9;
+  background: var(--ok-weak);
+  border-left: 4px solid var(--ok);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+  margin-top: 14px;
+}
+
+/* ③ 自分で解く */
+.try-count { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+.try-q {
+  font-size: 16px;
+  line-height: 1.85;
+  margin-bottom: 12px;
+  word-break: break-word;
+}
+
+.try-hint {
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--text);
+  background: var(--panel-2);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 11px 14px;
+  margin-bottom: 16px;
+}
+
+.try-result { margin-top: 16px; }
+
+/* 間違えても正解は出さない。色も赤ではなく警告色にして、通告に見せない */
+.try-again {
+  font-size: 14.5px;
+  line-height: 1.9;
+  background: var(--panel-2);
+  border-left: 4px solid var(--warn);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+}
+
+.try-ok { font-weight: 700; color: var(--ok); margin-bottom: 10px; }
+
+.try-after {
+  font-size: 14.5px;
+  line-height: 1.9;
+  background: var(--ok-weak);
+  border-left: 4px solid var(--ok);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+}
+
+/* ④ 修了 */
+.done-wrap { text-align: center; }
+
+.done-mark {
+  display: inline-block;
+  background: var(--ok);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 4px 16px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+
+.done-body {
+  font-size: 15px;
+  line-height: 2;
+  text-align: left;
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.done-actions { display: grid; gap: 8px; margin-top: 20px; justify-items: stretch; }
+
+/* --- シミュレータ ------------------------------------------------------ */
+
+.sim-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+
+.sim-stage {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+.ctrl { display: grid; gap: 12px; margin-top: 8px; }
+
+.ctrl label {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.ctrl input[type='range'] { width: 100%; accent-color: var(--accent); }
+.ctrl .v { font-variant-numeric: tabular-nums; min-width: 70px; text-align: right; color: var(--muted); }
+
+.readout { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+
+.stat {
+  flex: 1 1 130px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.stat .k { font-size: 12px; color: var(--muted); }
+.stat .v { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat.accent .v { color: var(--accent); }
+
+/* --- スマホ ------------------------------------------------------------ */
+
+@media (max-width: 520px) {
+  body { font-size: 15px; }
+  .wrap { padding: 0 10px 56px; }
+  .panel { padding: 14px; }
+  .tabs button { padding: 8px 10px; font-size: 13px; }
+  .title h1 { font-size: 15px; }
+  .ctrl label { grid-template-columns: 1fr; gap: 4px; }
+  .ctrl .v { text-align: left; }
+  .steps li { flex-direction: column; gap: 2px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="title">
+    <h1>応用情報ドリル</h1>
+    <span class="sub">ゼロから読める入門レッスン ＋ 無限に解ける計算ドリル</span>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button data-tab="learn" role="tab" aria-selected="true">はじめから</button>
+    <button data-tab="drill" role="tab" aria-selected="false">ドリル</button>
+    <button data-tab="sim" role="tab" aria-selected="false">シミュレータ</button>
+    <button data-tab="stats" role="tab" aria-selected="false">成績</button>
+  </nav>
+</header>
+
+<!-- はじめから（初学者向けレッスン） -->
+<section data-panel="learn">
+  <div id="learn-host"></div>
+</section>
+
+<!-- ドリル -->
+<section data-panel="drill" class="hidden">
+  <div class="panel">
+    <div class="row">
+      <strong style="font-size:14px">出題する分野</strong>
+      <span class="spacer"></span>
+      <span class="muted">選んだ分野からランダムに出題します</span>
+    </div>
+    <div class="filters" id="filters"></div>
+  </div>
+
+  <div class="panel" id="question"></div>
+
+  <div class="row" style="margin-top:14px">
+    <button class="btn" id="retry" title="同じ問題をもう一度表示します">この問題をもう一度</button>
+    <span class="spacer"></span>
+    <button class="btn primary" id="next">次の問題</button>
+  </div>
+</section>
+
+<!-- シミュレータ -->
+<section data-panel="sim" class="hidden">
+  <div class="panel">
+    <div class="sim-nav" id="sim-nav"></div>
+    <div id="sim-host"></div>
+  </div>
+</section>
+
+<!-- 成績 -->
+<section data-panel="stats" class="hidden">
+  <div class="panel">
+    <div id="stats-summary"></div>
+  </div>
+  <div class="panel">
+    <div class="row" style="margin-bottom:10px">
+      <strong style="font-size:14px">分野別（正答率の低い順）</strong>
+      <span class="spacer"></span>
+      <button class="btn" id="reset-stats">成績をリセット</button>
+    </div>
+    <div id="stats-table"></div>
+    <p class="muted" style="margin-top:14px">
+      成績はこの端末の中だけに保存されます。どこにも送信されません。
+    </p>
+  </div>
+</section>
+
+<p class="muted" style="margin-top:28px;text-align:center;font-size:12px">
+  出題は全問その場で自動生成しています（過去問の転載はありません）。<br>
+  build 20260802-2205（JST）
+</p>
+
+</div>
+
+<script type="module">
+// ===== src/core/rng.js ===========================================
+// seed付き擬似乱数。同じseedなら必ず同じ問題が出る＝「この問題をもう一度」が成立する。
+// mulberry32: 32bit・高速・分布が素直。暗号用途ではない（学習ツールなので十分）。
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ジェネレータに渡すヘルパ一式。gen(rng) の rng はこの形。
+function makeRng(seed) {
+  const next = mulberry32(seed);
+
+  const r = {
+    seed,
+    next,
+    // min以上max以下の整数
+    int(min, max) {
+      return min + Math.floor(next() * (max - min + 1));
+    },
+    // min以上max未満の実数を step 刻みで
+    float(min, max, step = 0.01) {
+      const n = Math.round((max - min) / step);
+      return round(min + r.int(0, n) * step, 10);
+    },
+    pick(arr) {
+      return arr[r.int(0, arr.length - 1)];
+    },
+    // 重複なしでn個選ぶ
+    sample(arr, n) {
+      const pool = arr.slice();
+      const out = [];
+      for (let i = 0; i < n && pool.length; i++) {
+        out.push(pool.splice(r.int(0, pool.length - 1), 1)[0]);
+      }
+      return out;
+    },
+    shuffle(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = r.int(0, i);
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    },
+    bool() {
+      return next() < 0.5;
+    },
+  };
+  return r;
+}
+
+// 浮動小数点の丸め。0.1+0.2問題で選択肢が重複判定を誤らないように、
+// 生成側で必ずこれを通す。
+function round(x, digits = 4) {
+  const p = Math.pow(10, digits);
+  return Math.round((x + Number.EPSILON) * p) / p;
+}
+
+// 乱数seedの既定値。URLの ?seed= があればそれを使う想定（UI側で解決）。
+function randomSeed() {
+  return Math.floor(Math.random() * 0xffffffff) >>> 0;
+}
+
+// ===== src/core/genkit.js ========================================
+// ジェネレータ共通のヘルパ。
+// ここの関数は DOM に触らない（jsc からも import して検証するため）。
+
+// 選択肢の組み立て。
+//
+// 設計の芯：誤答は「典型的なミスをするとこの値になる」ものだけを使う。
+// ランダムなダミー値を混ぜない — 消去法で当たってしまうと学習にならないし、
+// 「なぜその誤答になるのか」を解説できるからこそ復習の価値が出る。
+//
+// distractors は [{ value, why }] の形。why は「その誤答に至る考え違い」。
+function buildChoices(rng, answer, distractors, format) {
+  const fmt = format || String;
+  // 重複判定は「画面に出る文字列」で行う。値が違っても丸めて同じ表示になるなら、
+  // 利用者から見れば同じ選択肢が2つ並んでいるのと変わらない。
+  const seen = new Set([fmt(answer)]);
+  const picked = [];
+
+  for (const d of distractors) {
+    if (picked.length >= 3) break;
+    if (!isSane(d.value)) continue;
+    const k = fmt(d.value);
+    // 正解や既出と重複する誤答は捨てる（パラメータ次第で衝突しうる）
+    if (seen.has(k)) continue;
+    seen.add(k);
+    picked.push(d);
+  }
+
+  if (picked.length < 3) {
+    throw new Error(
+      `distractorが足りない（有効${picked.length}件）。パラメータ範囲を見直すこと。`
+    );
+  }
+
+  const items = [
+    { value: answer, correct: true, why: null },
+    ...picked.map((d) => ({ value: d.value, correct: false, why: d.why })),
+  ];
+
+  const shuffled = rng.shuffle(items);
+  return {
+    choices: shuffled.map((c) => fmt(c.value)),
+    choiceMeta: shuffled.map((c) => ({ correct: c.correct, why: c.why })),
+    answerIndex: shuffled.findIndex((c) => c.correct),
+  };
+}
+
+function isSane(v) {
+  if (typeof v !== 'number') return v !== null && v !== undefined && v !== '';
+  return Number.isFinite(v);
+}
+
+// 解説の1ステップ。value を構造として持たせることで、
+// 「解説の最終値と正解が一致するか」を機械検証できるようにする。
+function step(label, expr, value, unit = '') {
+  return { label, expr, value, unit };
+}
+
+// 「教える解説」のブロック。
+//
+// steps だけだと式の羅列になり、公式を既に知っている人しか読めない。
+// 実際に「今の実力では解説が分からない」というフィードバックを受けたため、
+// 式の前に「何を聞かれているか」「なぜその式になるか」を日本語で置けるようにした。
+//
+// kind:
+//   'ask'  … この問題は何を聞いているのか（1〜2文）
+//   'why'  … なぜその考え方・式になるのか（理屈。ここが本体）
+//   'calc' … 数字を追える形の計算（steps とは別に、途中を全部見せたいとき）
+//   'trap' … つまずきポイント。混同しやすい相手を名指しする
+function explain(kind, title, body) {
+  return { kind, title, body };
+}
+
+// --- 表示フォーマット ---------------------------------------------------
+
+function fmtNum(x, digits = 2) {
+  if (!Number.isFinite(x)) return String(x);
+  const r = round(x, digits);
+  // 整数なら小数点を出さない（「4」を「4.00」と書くと読みにくい）
+  if (Number.isInteger(r)) return String(r);
+  return r.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+function fmtPct(x, digits = 1) {
+  return `${fmtNum(x * 100, digits)}%`;
+}
+
+function fmtYen(x) {
+  return `${Math.round(x).toLocaleString('ja-JP')}円`;
+}
+
+// 大きな整数は必ず桁区切りを入れる。
+// 1600000000 のような数は桁を数えないと読めず、選択肢の比較で確実に事故る。
+function fmtInt(x) {
+  if (!Number.isFinite(x)) return String(x);
+  return Math.round(x).toLocaleString('ja-JP');
+}
+
+// 極端に小さい率の表示。
+//
+// 0.00025001 のような数字は、桁を数えないと大小すら比較できない。
+// 「何回に1回か」を併記すると、選択肢を意味で選べるようになる。
+// （「単位が細かくて見づらい」というフィードバックを受けて追加）
+function fmtSmallRate(x) {
+  if (!Number.isFinite(x) || x <= 0) return fmtNum(x, 8);
+  // 1以上は率としてありえない値（分子分母を逆にしたミスなど）。
+  // そのまま出すと 79998 のように桁区切りもなく並ぶので、整数として整える。
+  if (x >= 1) return fmtInt(x);
+  if (x >= 0.01) return `${fmtNum(x * 100, 2)}%`;
+  const once = Math.round(1 / x);
+  return `${fmtNum(x * 100, 4)}%（約${once.toLocaleString('ja-JP')}回に1回）`;
+}
+
+// 時間の読みやすい表示。ナノ秒の生値は桁が多くて比較できないので、
+// 大きければミリ秒・マイクロ秒に繰り上げて併記する。
+function fmtNs(x) {
+  if (!Number.isFinite(x)) return String(x);
+  if (x >= 1e6) return `${fmtNum(x / 1e6, 3)}ミリ秒`;
+  if (x >= 1e3) return `${fmtNum(x / 1e3, 3)}マイクロ秒`;
+  return `${fmtNum(x, 1)}ナノ秒`;
+}
+
+function fmtManYen(x) {
+  return `${fmtNum(x, 1)}万円`;
+}
+
+// --- 登録 ---------------------------------------------------------------
+
+const registry = [];
+
+function register(gen) {
+  for (const k of ['id', 'name', 'category', 'gen']) {
+    if (!gen[k]) throw new Error(`ジェネレータに ${k} がない`);
+  }
+  if (registry.some((g) => g.id === gen.id)) {
+    throw new Error(`ジェネレータIDが重複: ${gen.id}`);
+  }
+  registry.push(gen);
+  return gen;
+}
+
+// ジェネレータ本体は { question, answer, distractors, steps, ... } を返すだけでよく、
+// 選択肢のシャッフル・重複除去・整形はここで一括して行う。
+// UI も verify もこの関数だけを呼ぶ（＝出題経路が1本になる）。
+function generate(id, seed) {
+  const g = getGenerator(id);
+  if (!g) throw new Error(`未登録のジェネレータ: ${id}`);
+
+  const rng = makeRng(seed);
+  const raw = g.gen(rng);
+
+  const { choices, choiceMeta, answerIndex } = buildChoices(
+    rng,
+    raw.answer,
+    raw.distractors,
+    raw.format
+  );
+
+  return {
+    generatorId: g.id,
+    generatorName: g.name,
+    category: g.category,
+    seed,
+    question: raw.question,
+    hint: raw.hint || null,
+    choices,
+    choiceMeta,
+    answerIndex,
+    answer: raw.answer,
+    answerText: (raw.format || String)(raw.answer),
+    steps: raw.steps || [],
+    // explain は後付けなので、まだ書いていないジェネレータでは空配列になる。
+    // UI 側は空なら従来どおり steps だけを出す。
+    explain: raw.explain || [],
+    note: raw.note || null,
+    svg: raw.svg || null,
+  };
+}
+
+function allGenerators() {
+  return registry.slice();
+}
+
+function getGenerator(id) {
+  return registry.find((g) => g.id === id) || null;
+}
+
+// ===== src/core/generators/reliability.js ========================
+// 稼働率（システムの信頼性）
+// 科目Aの定番。直列は掛け算、並列は「両方止まる確率の余事象」。
+// 落とし穴：並列をうっかり掛け算してしまう／MTBFとMTTRを取り違える。
+
+
+register({
+  id: 'reliability',
+  name: '稼働率・信頼性',
+  category: 'テクノロジ系',
+  tags: ['稼働率', 'MTBF', 'MTTR', '直列', '並列'],
+
+  gen(rng) {
+    const kind = rng.pick(['serial', 'parallel', 'mixed', 'mtbf']);
+    if (kind === 'mtbf') return genMtbf(rng);
+    if (kind === 'serial') return genSerial(rng);
+    if (kind === 'parallel') return genParallel(rng);
+    return genMixed(rng);
+  },
+});
+
+// --- 直列 ---------------------------------------------------------------
+function genSerial(rng) {
+  const n = rng.int(2, 3);
+  // 装置の稼働率は互いに異なる値にする。同じ値が並ぶと問題として不自然なうえ、
+  // 「平均を取るミス」と「最小値を答えるミス」が同じ値に潰れて誤答が作れなくなる。
+  const as = rng.sample(
+    [0.8, 0.82, 0.85, 0.87, 0.88, 0.9, 0.92, 0.93, 0.95, 0.96, 0.98],
+    n
+  );
+
+  const answer = round(as.reduce((p, a) => p * a, 1), 6);
+
+  // 典型ミス：直列なのに並列の式（1-Π(1-a)）を使ってしまう
+  const asParallel = round(1 - as.reduce((p, a) => p * (1 - a), 1), 6);
+  // 典型ミス：平均を取ってしまう
+  const asAvg = round(as.reduce((s, a) => s + a, 0) / n, 6);
+  // 典型ミス：一番低い装置の値をそのまま答える
+  const asMin = round(Math.min(...as), 6);
+
+  const list = as.map((a, i) => `装置${String.fromCharCode(65 + i)}：${fmtNum(a, 3)}`).join('、');
+
+  return {
+    question:
+      `次の装置をすべて直列に接続したシステムがある。\n${list}\n` +
+      `このシステム全体の稼働率はいくらか。`,
+    hint: '直列は「全部が同時に動いていないと止まる」。',
+    answer,
+    distractors: [
+      { value: asParallel, why: '並列の式（1−(1−a₁)(1−a₂)…）を使っている。直列は単純な積。' },
+      { value: asAvg, why: '各装置の稼働率を平均している。稼働率は平均ではなく積で伝わる。' },
+      { value: asMin, why: '一番弱い装置の値をそのまま答えている。直列では全体は最小値よりさらに下がる。' },
+    ],
+    format: (v) => fmtNum(v, 4),
+    explain: [
+      explain(
+        'ask',
+        'まず、稼働率とは何か',
+        `「その装置が動いている時間の割合」です。稼働率 ${fmtNum(as[0], 3)} なら、` +
+          `100回中およそ ${Math.round(as[0] * 100)} 回は動いている、という意味。1に近いほど優秀です。`
+      ),
+      explain(
+        'why',
+        'なぜ掛け算になるのか',
+        `直列は「全部が動いていないとダメ」なつなぎ方です。1本の道に装置が順番に並んでいて、` +
+          `どれか1つでも壊れたら通れなくなる。\n` +
+          `装置Aが動いている確率が ${fmtNum(as[0], 3)}、そのうえで装置Bも動いている確率が ${fmtNum(as[1], 3)}。` +
+          `「AもBも動いている」は確率の掛け算になります。サイコロで1が出て、かつ次も1が出る確率を掛け算で出すのと同じ理屈です。`
+      ),
+      explain(
+        'calc',
+        '実際に計算する',
+        as.map((a, i) => `装置${String.fromCharCode(65 + i)}：${fmtNum(a, 3)}`).join('\n') +
+          `\n\nすべて掛ける：\n${as.map((a) => fmtNum(a, 3)).join(' × ')} = ${fmtNum(answer, 4)}`
+      ),
+      explain(
+        'trap',
+        'ここを間違えやすい',
+        `答えの ${fmtNum(answer, 4)} は、一番弱い装置の ${fmtNum(Math.min(...as), 3)} よりさらに低くなっています。\n` +
+          `直列は「つなげばつなぐほど弱くなる」のが特徴。1より小さい数を掛け続けるので、必ず下がります。\n` +
+          `逆に「つなぐほど強くなる」のが並列（冗長化）で、こちらは掛け算では解けません。`
+      ),
+    ],
+    steps: [
+      step('直列の公式', 'A = a₁ × a₂ × …', null),
+      step(
+        '代入',
+        as.map((a) => fmtNum(a, 3)).join(' × '),
+        answer
+      ),
+    ],
+    note:
+      '直列は掛けるほど必ず下がる。装置を増やすと信頼性が落ちるのが直列、上がるのが並列。',
+  };
+}
+
+// --- 並列（冗長化） -----------------------------------------------------
+function genParallel(rng) {
+  const n = rng.int(2, 3);
+  const a = rng.float(0.7, 0.95, 0.01);
+
+  const answer = round(1 - Math.pow(1 - a, n), 6);
+
+  const asSerial = round(Math.pow(a, n), 6);
+  // 典型ミス：余事象を取り忘れる（「全部止まる確率」をそのまま答える）
+  const asFail = round(Math.pow(1 - a, n), 6);
+  // 典型ミス：1から引く相手を間違える（1 − aⁿ）
+  const asInverted = round(1 - Math.pow(a, n), 6);
+  // 典型ミス：n重化なのに台数を1つ間違える。n=2のときは正解と一致してしまうため、
+  // n=3のときだけ誤答として使う（buildChoices側でも重複は弾かれるが、意図を明示しておく）
+  const asWrongN = n === 2
+    ? round(1 - Math.pow(1 - a, 3), 6)
+    : round(1 - Math.pow(1 - a, 2), 6);
+
+  return {
+    question:
+      `稼働率 ${fmtNum(a, 3)} の装置を ${n} 台並列に接続し、` +
+      `${n} 台のうち1台でも動いていればシステムは稼働するものとする。\n` +
+      `このシステム全体の稼働率はいくらか。`,
+    hint: '「1台でも動けばよい」＝「全部が同時に止まる」の余事象。',
+    answer,
+    distractors: [
+      { value: asSerial, why: '直列の式（積）を使っている。並列は余事象で考える。' },
+      {
+        value: asWrongN,
+        why: `台数が${n}台なのに${n === 2 ? 3 : 2}台分の式で計算している。指数は台数と一致させる。`,
+      },
+      { value: asInverted, why: '1から引く相手を間違えている（1−aⁿ）。引くのは「全部止まる確率」。' },
+      { value: asFail, why: '「全部同時に止まる確率」で止まっている。最後に1から引く必要がある。' },
+    ],
+    format: (v) => fmtNum(v, 4),
+    explain: [
+      explain(
+        'ask',
+        'この問題が聞いていること',
+        `同じ装置を ${n} 台用意して、そのうち1台でも生きていればシステムは動く、という状況です。` +
+          `いわゆる予備機（冗長化）。このとき、システム全体としてどれくらいの割合で動いているかを聞かれています。`
+      ),
+      explain(
+        'why',
+        '「1台でも動けばOK」を、どう計算するか',
+        `正面から数えると場合分けが大変です。1台だけ動く場合、2台動く場合…と全部足すことになる。\n\n` +
+          `そこで裏返します。システムが止まるのは **${n}台が全部同時に壊れたとき、そのときだけ** です。\n` +
+          `つまり「全部壊れる確率」さえ出せば、残りは全部「動いている」。だから最後に 1 から引けば答えになります。\n\n` +
+          `これを余事象（よじしょう）といいます。「少なくとも1つ」と来たら裏返す、と覚えてしまってよいです。`
+      ),
+      explain(
+        'calc',
+        '実際に計算する',
+        `1台が壊れている確率：1 − ${fmtNum(a, 3)} = ${fmtNum(1 - a, 3)}\n` +
+          `${n}台が同時に壊れる確率：${Array(n).fill(fmtNum(1 - a, 3)).join(' × ')} = ${fmtNum(Math.pow(1 - a, n), 6)}\n\n` +
+          `動いている確率は、その残り：\n1 − ${fmtNum(Math.pow(1 - a, n), 6)} = ${fmtNum(answer, 4)}`
+      ),
+      explain(
+        'trap',
+        'ここを間違えやすい',
+        `1台のときの稼働率が ${fmtNum(a, 3)} だったのに、${n}台にしたら ${fmtNum(answer, 4)} まで上がりました。` +
+          `**並列はつなぐほど強くなる**。ここが直列と正反対です。\n\n` +
+          `よくある間違いは2つ。掛け算してしまう（それは直列の式）。もう1つは ${fmtNum(Math.pow(1 - a, n), 6)} で計算を止めてしまうこと。` +
+          `これは「全部壊れる確率」なので、最後に1から引き忘れないこと。`
+      ),
+    ],
+    steps: [
+      step('全部止まる確率', `(1 − ${fmtNum(a, 3)})^${n}`, round(Math.pow(1 - a, n), 6)),
+      step('その余事象', `1 − ${fmtNum(Math.pow(1 - a, n), 6)}`, answer),
+    ],
+    note: '並列は「全部同時に落ちる確率」を出してから1から引く。これが冗長化の効果。',
+  };
+}
+
+// --- 直列＋並列の複合 ---------------------------------------------------
+function genMixed(rng) {
+  const a = rng.float(0.8, 0.95, 0.01); // 単体
+  const b = rng.float(0.7, 0.9, 0.01); // 並列にする装置
+
+  const par = 1 - Math.pow(1 - b, 2);
+  const answer = round(a * par, 6);
+
+  const allSerial = round(a * b * b, 6);
+  const allParallel = round(1 - (1 - a) * (1 - b) * (1 - b), 6);
+  const forgotPar = round(a * b, 6);
+
+  return {
+    question:
+      `装置A（稼働率 ${fmtNum(a, 3)}）の後段に、装置B（稼働率 ${fmtNum(b, 3)}）を2台並列に接続したシステムがある。\n` +
+      `Aは1台のみで、B側は2台のうち1台でも動いていればよい。\n` +
+      `このシステム全体の稼働率はいくらか。`,
+    hint: '並列部分を1つの装置にまとめてから、Aと直列で掛ける。',
+    answer,
+    distractors: [
+      { value: allSerial, why: 'B2台を直列として掛けている。並列は余事象で先にまとめる。' },
+      { value: allParallel, why: '全体を並列として計算している。AとB群は直列の関係。' },
+      { value: forgotPar, why: 'Bを1台としてしか計算していない。2台並列の効果が入っていない。' },
+    ],
+    format: (v) => fmtNum(v, 4),
+    explain: [
+      explain(
+        'ask',
+        'この問題が聞いていること',
+        `直列と並列が混ざった形です。Aは1台きり（ここが壊れたら終わり）。` +
+          `その後ろにBが2台並んでいて、B側はどちらか1台生きていればよい。全体としての稼働率を求めます。`
+      ),
+      explain(
+        'why',
+        '混ざっているときの解き方は1つだけ',
+        `**並列の部分を先に計算して、1台の装置とみなす。** これだけです。\n\n` +
+          `B2台の並列は、まとめると稼働率 ${fmtNum(par, 4)} の「1台のB群」と考えられます。\n` +
+          `そうすると、残るのは「A（${fmtNum(a, 3)}）とB群（${fmtNum(par, 4)}）が直列に並んでいる」というシンプルな形。あとは掛けるだけです。\n\n` +
+          `複雑に見える回路も、内側の並列から順に潰していけば必ず1本の直列に戻ります。`
+      ),
+      explain(
+        'calc',
+        '実際に計算する',
+        `【手順1】B群をまとめる（並列なので余事象）\n` +
+          `　B1台が壊れる確率：1 − ${fmtNum(b, 3)} = ${fmtNum(1 - b, 3)}\n` +
+          `　2台とも壊れる確率：${fmtNum(1 - b, 3)} × ${fmtNum(1 - b, 3)} = ${fmtNum(Math.pow(1 - b, 2), 4)}\n` +
+          `　B群の稼働率：1 − ${fmtNum(Math.pow(1 - b, 2), 4)} = ${fmtNum(par, 4)}\n\n` +
+          `【手順2】AとB群を直列で掛ける\n` +
+          `　${fmtNum(a, 3)} × ${fmtNum(par, 4)} = ${fmtNum(answer, 4)}`
+      ),
+      explain(
+        'trap',
+        'ここを間違えやすい',
+        `B単体は ${fmtNum(b, 3)} と低めですが、2台並べたことで ${fmtNum(par, 4)} まで上がっています。` +
+          `弱い装置ほど二重化の効果が大きい、というのがこの計算から読み取れることです。\n\n` +
+          `全体の答え ${fmtNum(answer, 4)} が A単体の ${fmtNum(a, 3)} より低いのは、Aと直列だから。` +
+          `**どれだけB側を強くしても、A単体の稼働率は超えられません。**`
+      ),
+    ],
+    steps: [
+      step('B群（並列）', `1 − (1 − ${fmtNum(b, 3)})²`, round(par, 6)),
+      step('Aと直列', `${fmtNum(a, 3)} × ${fmtNum(par, 6)}`, answer),
+    ],
+    note: '複合系は「並列を先に1つへ潰す→残りを直列で掛ける」の順で必ず解ける。',
+  };
+}
+
+// --- MTBF / MTTR --------------------------------------------------------
+function genMtbf(rng) {
+  const mtbf = rng.int(20, 60) * 10; // 200〜600時間
+  // MTTRはMTBFの1/50〜1/10の範囲に収める。
+  // 比が大きすぎる（例 550時間 : 2時間）と稼働率が0.996…に張り付き、
+  // 典型ミスの値まで小数4桁では正解と区別できなくなって選択肢が成立しない。
+  // 実務的にも稼働率98〜99%台のほうが問題として現実的。
+  const mttr = rng.int(Math.ceil(mtbf / 50), Math.floor(mtbf / 10));
+
+  const answer = round(mtbf / (mtbf + mttr), 6);
+
+  const inverted = round(mttr / (mtbf + mttr), 6); // 「止まっている割合」と取り違え
+  const half = round(mtbf / (mtbf + mttr * 2), 6); // 修理時間を二重に数える
+  // 分母をMTTRだけにするミス。値が1を超えて明らかにおかしくなるので、
+  // 稼働率として成立する範囲に収まるときだけ誤答に使う。
+  const wrongDenom = round(mttr / mtbf, 6); // MTBFとMTTRを逆に代入
+  // 修理時間を単純に引くミス。MTBF≫MTTR のときは正解と丸めで一致してしまう
+  // （実際そう近似できる）ので、そのときは自動的に捨てられて次の誤答が使われる。
+  const noRepair = round(1 - mttr / mtbf, 6);
+  const plusOne = round((mtbf + mttr) / (mtbf + mttr * 2), 6); // 分子を1サイクル全体にする
+
+  return {
+    question:
+      `あるシステムの MTBF が ${mtbf} 時間、MTTR が ${mttr} 時間である。\n` +
+      `このシステムの稼働率はいくらか。`,
+    hint: 'MTBFは「動いている平均時間」、MTTRは「直すのにかかる平均時間」。',
+    answer,
+    distractors: [
+      { value: noRepair, why: '修理時間を単純に引いている（1 − MTTR/MTBF）。分母は1サイクル全体。' },
+      { value: half, why: '分母のMTTRを二重に数えている。1サイクルに修理は1回。' },
+      { value: plusOne, why: '分子に1サイクル全体を置いている。分子は「動いている時間」＝MTBFだけ。' },
+      { value: inverted, why: 'MTTR/(MTBF+MTTR) を求めている。これは稼働率ではなく「止まっている割合」。' },
+      { value: wrongDenom, why: 'MTBFとMTTRを逆に代入している。分子は「動いている時間」のほう。' },
+    ],
+    format: (v) => fmtNum(v, 4),
+    explain: [
+      explain(
+        'ask',
+        'まず、MTBFとMTTRが何なのか',
+        `どちらも略語なので、まずここを押さえます。\n\n` +
+          `**MTBF（平均故障間隔）＝ 壊れずに動き続ける平均時間。** この問題では ${mtbf}時間。\n` +
+          `　→ 動き出してから次に壊れるまで、平均 ${mtbf}時間もつということ。\n\n` +
+          `**MTTR（平均修理時間）＝ 壊れてから直るまでの平均時間。** この問題では ${mttr}時間。\n` +
+          `　→ 壊れたら平均 ${mttr}時間で復旧する、ということ。\n\n` +
+          `Rが「Repair（修理）」のRだと覚えると取り違えません。`
+      ),
+      explain(
+        'why',
+        'なぜ MTBF ÷ (MTBF + MTTR) なのか',
+        `このシステムの一生は、こういう繰り返しです。\n\n` +
+          `　${mtbf}時間 動く → ${mttr}時間 修理 → ${mtbf}時間 動く → ${mttr}時間 修理 → …\n\n` +
+          `この「動く＋直す」のワンセットが1サイクルで、長さは ${mtbf} + ${mttr} = ${mtbf + mttr}時間。\n\n` +
+          `稼働率は「そのうち動いている割合」なので、\n` +
+          `　動いている時間 ÷ サイクル全体 ＝ ${mtbf} ÷ ${mtbf + mttr}\n\n` +
+          `公式を暗記するより、この時間の帯を思い浮かべるほうが確実です。`
+      ),
+      explain(
+        'calc',
+        '実際に計算する',
+        `1サイクルの長さ：${mtbf} + ${mttr} = ${mtbf + mttr}時間\n` +
+          `そのうち動いている時間：${mtbf}時間\n\n` +
+          `稼働率 = ${mtbf} ÷ ${mtbf + mttr} = ${fmtNum(answer, 4)}\n\n` +
+          `割合でいうと ${fmtPct(answer, 2)} の時間は動いている、ということになります。`
+      ),
+      explain(
+        'trap',
+        'ここを間違えやすい',
+        `**分母を MTBF だけにしない。** 分母はあくまで「動く時間＋直す時間」の合計です。\n\n` +
+          `また、${mttr} ÷ ${mtbf + mttr} = ${fmtNum(mttr / (mtbf + mttr), 4)} を答えてしまう間違いも多いです。` +
+          `これは「止まっている割合」で、稼働率のちょうど裏側。\n` +
+          `稼働率は普通1に近い値（0.9〜0.999あたり）になるので、**答えが0.5より小さくなったら、まず逆にしていないか疑う**とよいです。`
+      ),
+    ],
+    steps: [
+      step('公式', '稼働率 = MTBF / (MTBF + MTTR)', null),
+      step('1サイクルの長さ', `${mtbf} + ${mttr}`, mtbf + mttr, '時間'),
+      step('代入', `${mtbf} / ${mtbf + mttr}`, answer),
+    ],
+    note: `稼働率 ${fmtPct(answer, 2)}。「1サイクル＝動く時間＋直す時間」のうち動いている割合、と読めば迷わない。`,
+  };
+}
+
+// ===== src/core/generators/queue.js ==============================
+// 待ち行列理論 M/M/1
+// 落とし穴：「待ち時間」と「応答時間（＝待ち時間＋処理時間）」の取り違え。
+// ρ=λ/μ が1に近づくと待ちが爆発する — シミュレータで体感できるようにしてある。
+
+
+register({
+  id: 'queue',
+  name: '待ち行列（M/M/1）',
+  category: 'テクノロジ系',
+  tags: ['待ち行列', '利用率', '応答時間', 'M/M/1'],
+  simId: 'queue', // 対応するシミュレータ
+
+  gen(rng) {
+    return rng.pick([genWait, genResponse, genUtil])(rng);
+  },
+});
+
+// パラメータは「利用率が半端すぎない」範囲に取る。
+// ρ=0.9 を超えると待ち時間が跳ね上がって選択肢の桁が揃わなくなるため上限を置く。
+function baseParams(rng) {
+  const ts = rng.int(2, 20) / 10; // 平均サービス時間 0.2〜2.0秒
+  // ρ=0.5 は避ける。ρ/(1−ρ)=1 となり「分数を逆にするミス」が正解と同じ値になって
+  // 誤答として成立しないうえ、問題としても偶然当たりやすくなる。
+  const rho = rng.pick([0.2, 0.25, 0.3, 0.4, 0.6, 0.7, 0.75, 0.8]);
+  const lambda = round(rho / ts, 6); // λ = ρ/Ts
+  return { ts, rho, lambda };
+}
+
+// --- 平均待ち時間 -------------------------------------------------------
+function genWait(rng) {
+  const { ts, rho } = baseParams(rng);
+
+  const answer = round((rho / (1 - rho)) * ts, 4); // Tw
+  const response = round(answer + ts, 4); // 典型ミス：応答時間を答える
+  // 注：Ts/(1−ρ) は応答時間と同じ値なので誤答に使わない（responseと重複する）
+  const inverted = round(((1 - rho) / rho) * ts, 4); // 分数を逆にする
+  const justRho = round(rho * ts, 4); // ρ×Ts で止まる
+  const noTs = round(rho / (1 - rho), 4); // Tsを掛け忘れる
+
+  return {
+    question:
+      `M/M/1 の待ち行列モデルで、平均サービス時間が ${fmtNum(ts, 1)} 秒、` +
+      `窓口の利用率が ${fmtPct(rho, 0)} である。\n` +
+      `このとき平均待ち時間は何秒か。`,
+    hint: '待ち時間は「自分の処理時間」を含まない。含めると応答時間になる。',
+    answer,
+    distractors: [
+      { value: response, why: '応答時間（待ち時間＋処理時間）を答えている。設問は待ち時間だけ。' },
+      { value: inverted, why: '分数を逆にしている（(1−ρ)/ρ）。ρが大きいほど待つ、が正しい向き。' },
+      { value: justRho, why: 'ρ×Ts で止まっている。(1−ρ)で割る「混雑による増幅」が抜けている。' },
+      { value: noTs, why: 'サービス時間Tsを掛け忘れている。ρ/(1−ρ) は「Tsの何倍待つか」という倍率。' },
+    ],
+    format: (v) => `${fmtNum(v, 3)}秒`,
+    steps: [
+      step('公式', 'Tw = ρ/(1−ρ) × Ts', null),
+      step('混雑度', `${fmtNum(rho, 2)} / (1 − ${fmtNum(rho, 2)})`, round(rho / (1 - rho), 6)),
+      step('待ち時間', `${fmtNum(round(rho / (1 - rho), 6), 4)} × ${fmtNum(ts, 1)}`, answer, '秒'),
+    ],
+    note:
+      `利用率${fmtPct(rho, 0)}で待ち時間は処理時間の${fmtNum(rho / (1 - rho), 2)}倍。` +
+      `ρが1に近づくと分母が0に近づき、待ち時間は無限に発散する。`,
+  };
+}
+
+// --- 平均応答時間 -------------------------------------------------------
+function genResponse(rng) {
+  const { ts, rho } = baseParams(rng);
+
+  const answer = round(ts / (1 - rho), 4); // Tq = Ts/(1-ρ)
+  const waitOnly = round((rho / (1 - rho)) * ts, 4); // 典型ミス：待ち時間で止まる
+  const inverted = round(ts * (1 - rho), 4); // 掛け算にしてしまう
+  const doubled = round(ts / (1 - rho) + ts, 4); // 処理時間を二重に足す
+
+  return {
+    question:
+      `M/M/1 の待ち行列モデルで、平均サービス時間が ${fmtNum(ts, 1)} 秒、` +
+      `窓口の利用率が ${fmtPct(rho, 0)} である。\n` +
+      `このとき平均応答時間（システムに入ってから出るまで）は何秒か。`,
+    hint: '応答時間 = 待ち時間 + 自分の処理時間。まとめると Ts/(1−ρ)。',
+    answer,
+    distractors: [
+      { value: waitOnly, why: '待ち時間だけを答えている。応答時間は自分の処理時間も含む。' },
+      { value: inverted, why: '(1−ρ)を掛けている。混雑すると短くなる式になってしまい向きが逆。' },
+      { value: doubled, why: '処理時間を二重に足している。Ts/(1−ρ) の時点で既に含まれている。' },
+    ],
+    format: (v) => `${fmtNum(v, 3)}秒`,
+    steps: [
+      step('公式', 'Tq = Ts / (1−ρ)　（= 待ち時間 + Ts）', null),
+      step('代入', `${fmtNum(ts, 1)} / (1 − ${fmtNum(rho, 2)})`, answer, '秒'),
+      step('内訳（参考）', `待ち ${fmtNum(waitOnly, 3)}秒 + 処理 ${fmtNum(ts, 1)}秒`, null),
+    ],
+    note: '応答時間と待ち時間の差は「自分の処理時間Ts」ちょうど。設問がどちらを聞いているか必ず確認する。',
+  };
+}
+
+// --- 利用率 -------------------------------------------------------------
+function genUtil(rng) {
+  // Ts=1.0秒 と λ=1.0 は避ける。
+  //   Ts=1 だと λ×Ts と λ/Ts が同じ値になる
+  //   λ=1（Ts=ρのとき）だと λ/Ts・1/Ts・1/(λTs) が3つとも同じ値に潰れる
+  // どちらも「掛けるか割るか」を問う誤答が成立しなくなる。
+  const ts = rng.pick([0.2, 0.4, 0.5, 0.8, 1.2, 1.5, 2.0]);
+  const rho = rng.pick([0.2, 0.3, 0.4, 0.6, 0.7, 0.8].filter((r) => r !== ts));
+  const lambda = round(rho / ts, 4);
+
+  const answer = round(lambda * ts, 4);
+  const inverted = round(1 / (lambda * ts), 4);
+  const divided = round(lambda / ts, 4);
+  const complement = round(1 - lambda * ts, 4);
+  const asMu = round(1 / ts, 4); // サービス率をそのまま答える
+
+  return {
+    question:
+      `M/M/1 の待ち行列モデルで、平均到着率が ${fmtNum(lambda, 3)} 件/秒、` +
+      `平均サービス時間が ${fmtNum(ts, 1)} 秒である。\n` +
+      `この窓口の利用率はいくらか。`,
+    hint: 'ρ = λ/μ。μ（サービス率）はサービス時間の逆数なので、ρ = λ×Ts。',
+    answer,
+    distractors: [
+      { value: complement, why: '1から引いている。これは「窓口が空いている割合」。' },
+      { value: divided, why: 'λをTsで割っている。Tsは時間なので掛けるのが正しい（ρ=λ/μ=λ×Ts）。' },
+      { value: asMu, why: 'サービス率μ（＝1/Ts）を答えている。利用率はλとμの比。' },
+      { value: inverted, why: '逆数を取っている。利用率は必ず0〜1に収まる。' },
+    ],
+    format: (v) => fmtNum(v, 4),
+    steps: [
+      step('サービス率', `μ = 1 / ${fmtNum(ts, 1)}`, round(1 / ts, 4), '件/秒'),
+      step('利用率', `ρ = λ × Ts = ${fmtNum(lambda, 3)} × ${fmtNum(ts, 1)}`, answer),
+    ],
+    note: `利用率${fmtPct(answer, 1)}。ρ≧1になると行列は無限に伸びる（システムが破綻する）。`,
+  };
+}
+
+// ===== src/core/generators/cache.js ==============================
+// 記憶階層の実効アクセス時間
+// 落とし穴：ヒット率と NFP（ミス率）の取り違え、
+// 「ミス時は主記憶だけ」か「キャッシュを見てから主記憶」かの解釈違い。
+
+
+register({
+  id: 'cache',
+  name: 'キャッシュ実効アクセス時間',
+  category: 'テクノロジ系',
+  tags: ['キャッシュ', 'ヒット率', '実効アクセス時間', '記憶階層'],
+
+  gen(rng) {
+    return rng.pick([genEffective, genHitRate, genSpeedup])(rng);
+  },
+});
+
+// --- 実効アクセス時間 ---------------------------------------------------
+function genEffective(rng) {
+  const tc = rng.int(5, 40); // キャッシュ 5〜40ns
+  const tm = tc * rng.int(8, 20); // 主記憶はキャッシュの8〜20倍
+  const h = rng.int(80, 98) / 100; // ヒット率 80〜98%
+
+  const answer = round(h * tc + (1 - h) * tm, 4);
+
+  const swapped = round((1 - h) * tc + h * tm, 4); // ヒット率とミス率を逆
+  const avg = round((tc + tm) / 2, 4); // 単純平均
+  const missOnly = round(h * tc + (1 - h) * (tc + tm), 4); // ミス時にキャッシュ時間も足す解釈
+  const cacheOnly = round(tc / h, 4);
+
+  return {
+    question:
+      `キャッシュメモリのアクセス時間が ${tc} ナノ秒、主記憶のアクセス時間が ${tm} ナノ秒、` +
+      `キャッシュのヒット率が ${fmtPct(h, 0)} である。\n` +
+      `実効アクセス時間は何ナノ秒か。なお、ミスした場合は主記憶のみアクセスするものとする。`,
+    hint: '「ヒットしたときの時間×ヒット率」＋「ミスしたときの時間×ミス率」の加重平均。',
+    answer,
+    distractors: [
+      { value: swapped, why: 'ヒット率とミス率を逆に掛けている。ほとんどはヒットする側に重みがある。' },
+      { value: missOnly, why: 'ミス時にキャッシュのアクセス時間も足している。設問は「主記憶のみ」と指定。' },
+      { value: avg, why: '単純平均を取っている。ヒット率という重みを使っていない。' },
+      { value: cacheOnly, why: 'キャッシュ時間をヒット率で割っている。加重平均は掛けて足す。' },
+    ],
+    format: (v) => `${fmtNum(v, 2)}ナノ秒`,
+    steps: [
+      step('公式', '実効 = ヒット率×キャッシュ + ミス率×主記憶', null),
+      step('ミス率', `1 − ${fmtNum(h, 2)}`, round(1 - h, 4)),
+      step(
+        '代入',
+        `${fmtNum(h, 2)}×${tc} + ${fmtNum(1 - h, 2)}×${tm}`,
+        answer,
+        'ナノ秒'
+      ),
+    ],
+    note:
+      `主記憶より ${fmtNum(tm / answer, 2)} 倍速い。ヒット率が数%変わるだけで実効時間が大きく動くのがキャッシュの効き方。`,
+  };
+}
+
+// --- ヒット率を逆算 -----------------------------------------------------
+function genHitRate(rng) {
+  const tc = rng.int(10, 30);
+  const tm = tc * rng.int(10, 20);
+  const h = rng.int(85, 97) / 100;
+  const eff = round(h * tc + (1 - h) * tm, 4);
+
+  const answer = round(h, 4);
+  const missRate = round(1 - h, 4);
+  const ratio = round(tc / eff, 4);
+  const ratio2 = round(eff / tm, 4);
+
+  return {
+    question:
+      `キャッシュメモリのアクセス時間が ${tc} ナノ秒、主記憶のアクセス時間が ${tm} ナノ秒のシステムで、` +
+      `実効アクセス時間を測ったところ ${fmtNum(eff, 2)} ナノ秒であった。\n` +
+      `このときのキャッシュのヒット率はいくらか。なお、ミスした場合は主記憶のみアクセスする。`,
+    hint: '実効 = h×Tc + (1−h)×Tm を h について解く。',
+    answer,
+    distractors: [
+      { value: missRate, why: 'ミス率（NFP）を求めている。設問はヒット率。' },
+      { value: ratio, why: 'キャッシュ時間を実効時間で割っている。式を解いていない。' },
+      { value: ratio2, why: '実効時間を主記憶時間で割っている。これはヒット率にならない。' },
+    ],
+    format: (v) => fmtNum(v, 4),
+    steps: [
+      step('式を展開', `${fmtNum(eff, 2)} = h×${tc} + (1−h)×${tm}`, null),
+      step('整理', `${fmtNum(eff, 2)} = ${tm} − h×${tm - tc}`, null),
+      step(
+        'hについて解く',
+        `(${tm} − ${fmtNum(eff, 2)}) / ${tm - tc}`,
+        answer
+      ),
+    ],
+    note: 'ヒット率を逆算する型。展開して「h×(Tm−Tc)」の形に整理すると迷わない。',
+  };
+}
+
+// --- 高速化率（アムダールの法則の素朴版） -------------------------------
+function genSpeedup(rng) {
+  const tm = rng.int(50, 100);
+  const tc = rng.int(5, 15);
+  const h = rng.int(70, 95) / 100;
+  const eff = round(h * tc + (1 - h) * tm, 6);
+
+  const answer = round(tm / eff, 4);
+  const inverted = round(eff / tm, 4);
+  const diff = round(tm - eff, 4);
+  const ratioTc = round(tm / tc, 4);
+
+  return {
+    question:
+      `キャッシュのない構成では主記憶（${tm} ナノ秒）に毎回アクセスしていた。\n` +
+      `ここにアクセス時間 ${tc} ナノ秒のキャッシュを導入し、ヒット率 ${fmtPct(h, 0)} を得た。\n` +
+      `キャッシュ導入により、アクセスは何倍速くなったか。ミス時は主記憶のみアクセスする。`,
+    hint: '「何倍速いか」＝ 導入前の時間 ÷ 導入後の時間。',
+    answer,
+    distractors: [
+      { value: inverted, why: '割る向きが逆。速くなったなら答えは1より大きくなるはず。' },
+      { value: ratioTc, why: 'キャッシュ単体との比を取っている。ミスする分が計算に入っていない。' },
+      { value: diff, why: '差を取っている。「何倍」は比であって差ではない。' },
+    ],
+    format: (v) => `${fmtNum(v, 2)}倍`,
+    steps: [
+      step('導入後の実効時間', `${fmtNum(h, 2)}×${tc} + ${fmtNum(1 - h, 2)}×${tm}`, eff, 'ナノ秒'),
+      step('高速化率', `${tm} / ${fmtNum(eff, 4)}`, answer, '倍'),
+    ],
+    note:
+      `ヒット率${fmtPct(h, 0)}でも${fmtNum(answer, 2)}倍止まり。` +
+      `残りのミスが足を引っ張るのがポイント（ここがアムダールの法則の考え方）。`,
+  };
+}
+
+// ===== src/core/generators/cpu.js ================================
+// CPU性能（CPI・MIPS・クロック）
+// 落とし穴：クロック周波数の単位（MHz/GHz）と時間（ns）の往復、
+// 命令ミックスの重み付き平均を単純平均にしてしまう。
+
+
+register({
+  id: 'cpu',
+  name: 'CPI・MIPS・命令ミックス',
+  category: 'テクノロジ系',
+  tags: ['CPI', 'MIPS', 'クロック', '命令ミックス'],
+
+  gen(rng) {
+    return rng.pick([genMix, genMips, genExecTime])(rng);
+  },
+});
+
+// 命令ミックスの素材。比率の合計が100%になる組を作る。
+function makeMix(rng) {
+  // 重み付き平均が単純平均と一致してしまう配分は出題として不適切
+  // （加重平均を理解していなくても正解できてしまう）ので、一致しない組が出るまで引き直す。
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const n = rng.int(3, 4);
+    const names = rng.sample(['演算命令', '転送命令', '分岐命令', '比較命令', 'メモリ参照命令'], n);
+
+    // 10%刻みで合計100%になるよう配分（各20%以上にして偏りすぎを防ぐ）
+    const parts = [];
+    let rest = 10;
+    for (let i = 0; i < n - 1; i++) {
+      const max = rest - (n - 1 - i) * 2;
+      const v = rng.int(2, Math.max(2, max));
+      parts.push(v);
+      rest -= v;
+    }
+    parts.push(rest);
+
+    // CPIは互いに異なる値にする
+    const cpis = rng.sample([1, 2, 3, 4, 5, 6, 8, 10], n);
+    const mix = names.map((name, i) => ({ name, ratio: parts[i] / 10, cpi: cpis[i] }));
+
+    const weighted = mix.reduce((s, m) => s + m.ratio * m.cpi, 0);
+    const simple = cpis.reduce((s, c) => s + c, 0) / n;
+    if (Math.abs(weighted - simple) > 0.05) return mix;
+  }
+  // 30回引いても見つからない確率は事実上ゼロだが、無限ループは避ける
+  return [
+    { name: '演算命令', ratio: 0.5, cpi: 2 },
+    { name: '転送命令', ratio: 0.3, cpi: 4 },
+    { name: '分岐命令', ratio: 0.2, cpi: 8 },
+  ];
+}
+
+// --- 命令ミックスから平均CPI -------------------------------------------
+function genMix(rng) {
+  const mix = makeMix(rng);
+
+  const answer = round(mix.reduce((s, m) => s + m.ratio * m.cpi, 0), 4);
+  const simpleAvg = round(mix.reduce((s, m) => s + m.cpi, 0) / mix.length, 4);
+  const sum = round(mix.reduce((s, m) => s + m.cpi, 0), 4);
+  const maxCpi = round(Math.max(...mix.map((m) => m.cpi)), 4);
+
+  const table = mix
+    .map((m) => `　${m.name}：出現率 ${fmtPct(m.ratio, 0)}、実行に ${m.cpi} クロック`)
+    .join('\n');
+
+  return {
+    question:
+      `あるプロセッサの命令の内訳が次のとおりである。\n${table}\n` +
+      `このプロセッサの平均CPI（1命令あたりの平均クロック数）はいくらか。`,
+    hint: '出現率を重みとした加重平均。単純平均ではない。',
+    answer,
+    distractors: [
+      { value: simpleAvg, why: '単純平均を取っている。出現率という重みを使っていない。' },
+      { value: sum, why: 'クロック数を合計しただけ。1命令あたりの平均なので割合を掛ける。' },
+      { value: maxCpi, why: '最も遅い命令のクロック数を答えている。平均は全体の重み付き和。' },
+    ],
+    format: (v) => `${fmtNum(v, 3)}クロック`,
+    steps: [
+      step('公式', '平均CPI = Σ(出現率 × CPI)', null),
+      step(
+        '代入',
+        mix.map((m) => `${fmtNum(m.ratio, 1)}×${m.cpi}`).join(' + '),
+        answer,
+        'クロック'
+      ),
+    ],
+    note: '命令ミックスは「よく出る命令ほど効く」加重平均。出現率の合計が1になっているか必ず確認する。',
+  };
+}
+
+// --- MIPS値 -------------------------------------------------------------
+function genMips(rng) {
+  const ghz = rng.pick([0.5, 0.8, 1.0, 1.25, 1.6, 2.0, 2.5, 4.0]);
+  const cpi = rng.pick([1.25, 1.6, 2, 2.5, 3.2, 4, 5, 8]);
+
+  const mhz = ghz * 1000;
+  const answer = round(mhz / cpi, 4); // MIPS = クロック(MHz)/CPI
+
+  const multiplied = round(mhz * cpi, 4);
+  const inGhz = round(ghz / cpi, 4); // 単位をGHzのまま計算
+  const inverted = round(cpi / mhz, 4);
+
+  return {
+    question:
+      `クロック周波数 ${fmtNum(ghz, 2)} GHz、平均CPI ${fmtNum(cpi, 2)} のプロセッサがある。\n` +
+      `このプロセッサの性能は何MIPSか。`,
+    hint: 'MIPS＝1秒あたりの百万命令数。クロックをMHzに直してCPIで割る。',
+    answer,
+    distractors: [
+      { value: multiplied, why: 'CPIを掛けている。CPIが大きいほど遅いので割るのが正しい。' },
+      { value: inGhz, why: 'GHzのまま割っている。MIPSは百万単位なのでMHzに直す（×1000）。' },
+      { value: inverted, why: '逆数を取っている。MIPSは大きいほど高性能な指標。' },
+    ],
+    format: (v) => `${fmtNum(v, 2)}MIPS`,
+    steps: [
+      // 式に「= …MHz」と書いてあるので value は持たせない（二重表示になる）
+      step('クロックをMHzへ', `${fmtNum(ghz, 2)} GHz = ${mhz} MHz`, null),
+      step('MIPS', `${mhz} / ${fmtNum(cpi, 2)}`, answer, 'MIPS'),
+    ],
+    note:
+      `1命令に平均${fmtNum(cpi, 2)}クロック。1秒間に${mhz}百万クロック進むので、` +
+      `実行できる命令数はその${fmtNum(1 / cpi, 3)}倍。`,
+  };
+}
+
+// --- 実行時間 -----------------------------------------------------------
+function genExecTime(rng) {
+  const ghz = rng.pick([0.5, 0.8, 1.25, 1.6, 2.0, 2.5, 4.0]);
+  const cpi = rng.pick([1.25, 1.6, 2.5, 3.2, 4, 5, 8]);
+  const instructions = rng.int(2, 50) * 10; // 20〜500 百万命令
+
+  // 実行時間(秒) = 命令数 × CPI / クロック(Hz)
+  const answer = round((instructions * 1e6 * cpi) / (ghz * 1e9), 6);
+
+  const noCpi = round((instructions * 1e6) / (ghz * 1e9), 6);
+  // cpi×ghz=2 のとき noCpi と一致するので、そのときは自動的に捨てられる
+  const multiplied = round((instructions * 1e6 * cpi * ghz) / 1e9, 6);
+  const divCpi = round((instructions * 1e6) / cpi / (ghz * 1e9), 6);
+  const inMhz = round((instructions * 1e6 * cpi) / (ghz * 1e6), 6); // GHz→MHzで割る単位ミス
+
+  return {
+    question:
+      `クロック周波数 ${fmtNum(ghz, 2)} GHz、平均CPI ${fmtNum(cpi, 2)} のプロセッサで、` +
+      `${instructions} 百万命令のプログラムを実行する。\n実行時間は何秒か。`,
+    hint: '実行時間 = 命令数 × CPI ÷ クロック周波数。単位をHzと個数に揃えてから割る。',
+    answer,
+    distractors: [
+      { value: noCpi, why: 'CPIを掛けていない。1命令に複数クロックかかる分が抜けている。' },
+      { value: divCpi, why: 'CPIで割っている。CPIが大きいほど時間はかかるので掛ける。' },
+      { value: multiplied, why: 'クロック周波数を掛けている。速いほど時間は短くなるので割る。' },
+      { value: inMhz, why: 'GHzをMHz（10⁶）として割っている。GHzは10⁹。' },
+    ],
+    format: (v) => `${fmtNum(v, 4)}秒`,
+    steps: [
+      step('総クロック数', `${instructions}×10⁶ × ${fmtNum(cpi, 2)}`, round(instructions * 1e6 * cpi, 0), 'クロック'),
+      step('クロック周波数', `${fmtNum(ghz, 2)} GHz = ${fmtInt(ghz * 1e9)} Hz`, null),
+      step('実行時間', `${fmtInt(instructions * 1e6 * cpi)} / ${fmtInt(ghz * 1e9)}`, answer, '秒'),
+    ],
+    note: '「必要な総クロック数 ÷ 1秒に進むクロック数」と読めば、掛けるか割るかで迷わない。',
+  };
+}
+
+// ===== src/core/generators/transfer.js ===========================
+// 伝送時間・回線速度・データ量
+// 落とし穴：バイトとビットの8倍、伝送効率の掛け忘れ、
+// 「Mビット/秒」の M が10⁶ なのに 1024² で計算してしまう。
+
+
+register({
+  id: 'transfer',
+  name: '伝送時間・データ量',
+  category: 'テクノロジ系',
+  tags: ['伝送時間', '回線速度', '伝送効率', '標本化定理'],
+
+  gen(rng) {
+    return rng.pick([genTransferTime, genSampling, genCapacity])(rng);
+  },
+});
+
+// --- 伝送時間 -----------------------------------------------------------
+function genTransferTime(rng) {
+  const mbMB = rng.pick([2, 5, 10, 20, 50, 100]); // Mバイト
+  const mbps = rng.pick([8, 20, 40, 50, 80, 100, 200]); // Mビット/秒
+  const eff = rng.pick([0.5, 0.6, 0.7, 0.8]); // 伝送効率
+
+  // 時間 = データ量(ビット) / (回線速度 × 伝送効率)
+  const bits = mbMB * 8; // Mビット
+  const answer = round(bits / (mbps * eff), 4);
+
+  const noEff = round(bits / mbps, 4); // 伝送効率を忘れる
+  const noByte = round(mbMB / (mbps * eff), 4); // バイト→ビットを忘れる
+  const divEff = round((bits / mbps) * eff, 4); // 効率を掛けてしまう
+
+  return {
+    question:
+      `${mbMB} Mバイトのデータを、伝送速度 ${mbps} Mビット/秒、` +
+      `伝送効率 ${fmtPct(eff, 0)} の回線で送信する。\n` +
+      `伝送にかかる時間は何秒か。`,
+    hint: 'バイトとビットの単位を揃えてから、実効速度（速度×効率）で割る。',
+    answer,
+    distractors: [
+      { value: noEff, why: '伝送効率を掛け忘れている。効率が悪いほど時間はかかる。' },
+      { value: noByte, why: 'バイトをビットに直していない。1バイト＝8ビット。' },
+      { value: divEff, why: '効率を掛けている。実効速度は「速度×効率」で、それで割る。' },
+    ],
+    format: (v) => `${fmtNum(v, 2)}秒`,
+    steps: [
+      step('データ量をビットへ', `${mbMB} Mバイト × 8`, bits, 'Mビット'),
+      step('実効速度', `${mbps} × ${fmtNum(eff, 1)}`, round(mbps * eff, 4), 'Mビット/秒'),
+      step('伝送時間', `${bits} / ${fmtNum(mbps * eff, 2)}`, answer, '秒'),
+    ],
+    note: 'この手の問題は「単位を揃える」が全て。Mバイト→Mビットの×8を落とすと8倍ずれる。',
+  };
+}
+
+// --- 標本化定理・音声データ量 -------------------------------------------
+function genSampling(rng) {
+  const khz = rng.pick([8, 11, 16, 22, 44, 48]); // 標本化周波数 kHz
+  const bits = rng.pick([8, 16, 24]); // 量子化ビット数
+  const ch = rng.pick([1, 2]); // チャネル数
+  const sec = rng.pick([10, 30, 60, 120, 300]);
+
+  // データ量(バイト) = 標本化周波数 × 量子化ビット数 × ch × 秒 / 8
+  const answer = round((khz * 1000 * bits * ch * sec) / 8 / 1e6, 4); // Mバイト
+
+  const inBits = round((khz * 1000 * bits * ch * sec) / 1e6, 4); // 8で割り忘れ
+  const doubleDiv = round((khz * 1000 * (bits / 8) * ch * sec) / 8 / 1e6, 4); // 8で二重に割る
+  const kiloAs1024 = round((khz * 1024 * bits * ch * sec) / 8 / 1e6, 4); // kを1024として計算
+  // チャネル数の扱いを誤るミス。
+  // ch=1 のとき「掛け忘れ」は正解と一致し、ch=2 のとき「半分にするミス」と同値になるため、
+  // それぞれで成立する側だけを誤答に使う。
+  const chMistake =
+    ch === 1
+      ? round((khz * 1000 * bits * 2 * sec) / 8 / 1e6, 4) // モノラルなのに2倍している
+      : round((khz * 1000 * bits * sec) / 8 / 1e6, 4); // ステレオなのに1ch分で計算
+
+  const chName = ch === 1 ? 'モノラル（1チャネル）' : 'ステレオ（2チャネル）';
+
+  return {
+    question:
+      `音声を標本化周波数 ${khz} kHz、量子化ビット数 ${bits} ビット、${chName} で ` +
+      `${sec} 秒間録音する。\n圧縮しない場合のデータ量はおよそ何Mバイトか。` +
+      `なお 1Mバイト＝10⁶ バイトとする。`,
+    hint: '1秒あたりのビット数 ＝ 標本化周波数 × 量子化ビット数 × チャネル数。',
+    answer,
+    distractors: [
+      { value: inBits, why: 'ビットのまま答えている。バイトにするには8で割る。' },
+      {
+        value: chMistake,
+        why:
+          ch === 1
+            ? 'モノラルなのに2チャネル分で計算している。1チャネルならそのまま。'
+            : 'ステレオなのに1チャネル分で計算している。2チャネルは2倍のデータ量。',
+      },
+      { value: doubleDiv, why: '8で二重に割っている。ビット→バイトの変換は1回だけ。' },
+      { value: kiloAs1024, why: 'kHzのkを1024として計算している。周波数のkは10³。' },
+    ],
+    format: (v) => `${fmtNum(v, 2)}Mバイト`,
+    steps: [
+      step(
+        '1秒あたり',
+        `${khz}k × ${bits}ビット × ${ch}ch`,
+        round((khz * 1000 * bits * ch) / 1000, 2),
+        'kビット/秒'
+      ),
+      step('全体のビット数', `× ${sec}秒`, round(khz * 1000 * bits * ch * sec, 0), 'ビット'),
+      step('バイトへ', `÷ 8 ÷ 10⁶`, answer, 'Mバイト'),
+    ],
+    note:
+      '標本化定理（原音の最高周波数の2倍で標本化する）は「録音の設定を決める」話。' +
+      'データ量計算では設定された周波数をそのまま使う。',
+  };
+}
+
+// --- 必要な回線速度 -----------------------------------------------------
+function genCapacity(rng) {
+  const mbMB = rng.pick([50, 100, 200, 500, 1000]);
+  const min = rng.pick([2, 5, 10, 20]);
+  const eff = rng.pick([0.4, 0.5, 0.625, 0.8]);
+
+  const sec = min * 60;
+  const bits = mbMB * 8; // Mビット
+  // 必要速度 = データ量 / (時間 × 効率)
+  const answer = round(bits / sec / eff, 4);
+
+  const noEff = round(bits / sec, 4);
+  const withEff = round((bits / sec) * eff, 4);
+  const noByte = round(mbMB / sec / eff, 4);
+
+  return {
+    question:
+      `${mbMB} Mバイトのデータを ${min} 分以内に転送したい。` +
+      `回線の伝送効率が ${fmtPct(eff, 1)} のとき、\n少なくとも何Mビット/秒の回線が必要か。`,
+    hint: '必要な実効速度を出してから、効率で割り戻して「回線の公称速度」にする。',
+    answer,
+    distractors: [
+      { value: noEff, why: '伝送効率を考慮していない。効率が悪い分、公称速度は余分に必要。' },
+      { value: withEff, why: '効率を掛けている。割り戻さないと必要な公称速度にならない。' },
+      { value: noByte, why: 'バイトをビットに直していない。1バイト＝8ビット。' },
+    ],
+    format: (v) => `${fmtNum(v, 2)}Mビット/秒`,
+    steps: [
+      step('データ量をビットへ', `${mbMB} × 8`, bits, 'Mビット'),
+      step('制限時間', `${min}分 = ${sec}秒`, null),
+      step('必要な実効速度', `${bits} / ${sec}`, round(bits / sec, 4), 'Mビット/秒'),
+      step('効率で割り戻す', `${fmtNum(bits / sec, 4)} / ${fmtNum(eff, 3)}`, answer, 'Mビット/秒'),
+    ],
+    note: '「効率で割る」のは、実効速度から公称速度へ戻す操作。掛けると逆方向になるので注意。',
+  };
+}
+
+// ===== src/core/generators/subnet.js =============================
+// サブネッティング（CIDR）
+// 落とし穴：収容ホスト数で「−2」（ネットワークアドレスとブロードキャスト）を忘れる、
+// ブロードキャストアドレスの計算、プレフィクス長とサブネットマスクの往復。
+
+register({
+  id: 'subnet',
+  name: 'サブネット・CIDR',
+  category: 'テクノロジ系',
+  tags: ['サブネット', 'CIDR', 'IPアドレス', 'ブロードキャスト'],
+  simId: 'subnet', // 対応するシミュレータ
+
+  gen(rng) {
+    return rng.pick([genHosts, genNetworkAddr, genBroadcast, genMask])(rng);
+  },
+});
+
+// --- IPアドレスのユーティリティ（32bit整数として扱う） -------------------
+
+function ipToInt(o) {
+  return ((o[0] << 24) >>> 0) + (o[1] << 16) + (o[2] << 8) + o[3];
+}
+
+function intToIp(n) {
+  return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.');
+}
+
+function maskInt(prefix) {
+  // prefix=0 のとき 32bitシフトは未定義なので分岐する
+  return prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
+}
+
+function maskToDotted(prefix) {
+  return intToIp(maskInt(prefix));
+}
+
+// プライベートアドレス空間からランダムなアドレスを作る。
+// prefixに対して「ホスト部が0でない」＝ネットワークアドレスそのものにならないようにする。
+function randomHost(rng, prefix) {
+  const base = rng.pick([
+    ipToInt([192, 168, rng.int(0, 255), 0]),
+    ipToInt([172, rng.int(16, 31), rng.int(0, 255), 0]),
+    ipToInt([10, rng.int(0, 255), rng.int(0, 255), 0]),
+  ]);
+  const hostBits = 32 - prefix;
+  const size = Math.pow(2, hostBits);
+  const network = (base & maskInt(prefix)) >>> 0;
+  // ホスト部は 1 〜 size-2 の範囲（ネットワーク／ブロードキャストを避ける）
+  const offset = rng.int(1, Math.max(1, size - 2));
+  return (network + offset) >>> 0;
+}
+
+// --- 収容ホスト数 -------------------------------------------------------
+function genHosts(rng) {
+  const prefix = rng.int(20, 30);
+  const hostBits = 32 - prefix;
+
+  const answer = Math.pow(2, hostBits) - 2;
+  const noMinus2 = Math.pow(2, hostBits); // −2を忘れる
+  const minus1 = Math.pow(2, hostBits) - 1; // −1しかしない
+  const netBits = Math.pow(2, prefix % 8 === 0 ? 8 : 8 - (prefix % 8)); // ネットワーク部で数える
+  const half = Math.pow(2, hostBits - 1) - 2;
+
+  return {
+    question:
+      `サブネットマスクが /${prefix}（${maskToDotted(prefix)}）のネットワークがある。\n` +
+      `このサブネットに割り当てられるホストは最大何台か。`,
+    hint: 'ホスト部のビット数から2のべき乗を出し、使えない2つを引く。',
+    answer,
+    distractors: [
+      { value: noMinus2, why: 'ネットワークアドレスとブロードキャストアドレスの2つを引いていない。' },
+      { value: minus1, why: '1つしか引いていない。使えないのはネットワークとブロードキャストの2つ。' },
+      { value: half, why: 'ホスト部のビット数を1つ少なく数えている。32−プレフィクス長で計算する。' },
+      { value: netBits, why: 'ネットワーク部側のビットで数えている。ホスト数はホスト部のビット数で決まる。' },
+    ],
+    format: (v) => `${fmtNum(v, 0)}台`,
+    steps: [
+      step('ホスト部のビット数', `32 − ${prefix}`, hostBits, 'ビット'),
+      step('アドレスの総数', `2^${hostBits}`, Math.pow(2, hostBits), '個'),
+      step('使えない2つを引く', `${Math.pow(2, hostBits)} − 2`, answer, '台'),
+    ],
+    note:
+      'ネットワークアドレス（ホスト部が全0）とブロードキャストアドレス（全1）はホストに割り当てられない。' +
+      'この「−2」が最頻出の落とし穴。',
+  };
+}
+
+// --- ネットワークアドレス -----------------------------------------------
+function genNetworkAddr(rng) {
+  // /24 は計算せずに答えが見えてしまうので避ける
+  const prefix = rng.pick([20, 21, 22, 23, 25, 26, 27, 28, 29]);
+  const ip = randomHost(rng, prefix);
+  const mask = maskInt(prefix);
+
+  const network = (ip & mask) >>> 0;
+  const broadcast = (network + Math.pow(2, 32 - prefix) - 1) >>> 0;
+
+  const answer = intToIp(network);
+  const asBroadcast = intToIp(broadcast);
+  const asIs = intToIp(ip);
+  // 典型ミス：オクテット境界（/24）で切ってしまう。
+  // ネットワークアドレスが .0 で終わる場合は正解と一致するので自動的に捨てられる。
+  const at24 = intToIp((ip & maskInt(24)) >>> 0);
+  const firstHost = intToIp((network + 1) >>> 0);
+  const prevBroadcast = intToIp((network - 1) >>> 0); // 1つ手前のサブネットの末尾
+  const lastHost = intToIp((broadcast - 1) >>> 0);
+
+  return {
+    question:
+      `IPアドレス ${intToIp(ip)}/${prefix} が割り当てられたホストがある。\n` +
+      `このホストが属するネットワークのネットワークアドレスはどれか。`,
+    hint: 'IPアドレスとサブネットマスクのビットANDを取る。',
+    answer,
+    distractors: [
+      { value: asBroadcast, why: 'ブロードキャストアドレス（ホスト部が全1）を答えている。' },
+      { value: at24, why: '/24（オクテット境界）で区切っている。プレフィクス長どおりに区切る。' },
+      { value: firstHost, why: '最初に使えるホストアドレスを答えている。ネットワークアドレスはその1つ前。' },
+      { value: asIs, why: '与えられたIPアドレスをそのまま答えている。マスクとのANDが必要。' },
+      { value: prevBroadcast, why: '1つ手前のサブネットのブロードキャストアドレス。区切りを1つ手前で取っている。' },
+      { value: lastHost, why: '最後に使えるホストアドレスを答えている。これはサブネットの終端側。' },
+    ],
+    steps: [
+      step('サブネットマスク', `/${prefix} = ${maskToDotted(prefix)}`, null),
+      step('ホスト部のビット数', `32 − ${prefix}`, 32 - prefix, 'ビット'),
+      step('IPとマスクのAND', `${intToIp(ip)} AND ${maskToDotted(prefix)}`, null),
+      step('ネットワークアドレス', answer, null),
+    ],
+    note:
+      `このサブネットの範囲は ${intToIp(network)} 〜 ${intToIp(broadcast)}。` +
+      `境界がオクテットの途中に来るときほど間違えやすい。`,
+  };
+}
+
+// --- ブロードキャストアドレス -------------------------------------------
+function genBroadcast(rng) {
+  const prefix = rng.pick([20, 21, 22, 26, 27, 28, 29]);
+  const ip = randomHost(rng, prefix);
+  const mask = maskInt(prefix);
+
+  const network = (ip & mask) >>> 0;
+  const size = Math.pow(2, 32 - prefix);
+  const broadcast = (network + size - 1) >>> 0;
+
+  const answer = intToIp(broadcast);
+  const asNetwork = intToIp(network);
+  const lastHost = intToIp((broadcast - 1) >>> 0);
+  const nextNetwork = intToIp((broadcast + 1) >>> 0);
+  // /24で切るミス。ブロードキャストが .255 で終わる場合は正解と一致するので自動的に捨てられる。
+  const at24 = intToIp(((ip & maskInt(24)) + 255) >>> 0);
+  const firstHost = intToIp((network + 1) >>> 0);
+  const asIs = intToIp(ip);
+
+  return {
+    question:
+      `IPアドレス ${intToIp(ip)}/${prefix} が割り当てられたホストがある。\n` +
+      `このホストが属するサブネットのブロードキャストアドレスはどれか。`,
+    hint: 'ネットワークアドレスを求めてから、ホスト部を全部1にする。',
+    answer,
+    distractors: [
+      { value: lastHost, why: '最後に使えるホストアドレスを答えている。ブロードキャストはその1つ後。' },
+      { value: nextNetwork, why: '次のサブネットの先頭を答えている。1つ行き過ぎている。' },
+      { value: at24, why: '/24（オクテット境界）で区切っている。プレフィクス長どおりに区切る。' },
+      { value: asNetwork, why: 'ネットワークアドレス（ホスト部が全0）を答えている。' },
+      { value: firstHost, why: '最初に使えるホストアドレスを答えている。ブロードキャストは終端側。' },
+      { value: asIs, why: '与えられたIPアドレスをそのまま答えている。ホスト部を全1にする必要がある。' },
+    ],
+    steps: [
+      step('ネットワークアドレス', `${intToIp(ip)} AND ${maskToDotted(prefix)}`, null),
+      step('　', asNetwork, null),
+      step('サブネットのサイズ', `2^(32−${prefix})`, size, '個'),
+      step('ブロードキャスト', `ネットワークアドレス + ${size} − 1`, null),
+      step('　', answer, null),
+    ],
+    note: `使えるホストは ${intToIp((network + 1) >>> 0)} 〜 ${lastHost} の ${size - 2} 台。`,
+  };
+}
+
+// --- 必要なプレフィクス長 -----------------------------------------------
+function genMask(rng) {
+  const needed = rng.pick([10, 20, 30, 50, 60, 100, 200, 300, 500, 1000]);
+
+  // needed台を収容できる最小のホストビット数
+  let hostBits = 1;
+  while (Math.pow(2, hostBits) - 2 < needed) hostBits++;
+  const prefix = 32 - hostBits;
+
+  const answer = prefix;
+  const oneOff = prefix + 1; // 1つ足りないプレフィクス
+  const tooWide = prefix - 1; // 1つ大きすぎる
+  const asHostBits = hostBits; // プレフィクス長とホストビット数を取り違える
+  const twoOff = prefix + 2; // ホスト部が2ビット足りない
+  // 注：「−2を忘れる」ミスは、切り上げの都合でほとんどの場合プレフィクス長が
+  // 正解と同じになるため誤答として成立しない（2^n−2 と 2^n が同じnに落ちる）。
+
+  return {
+    question:
+      `1つのサブネットに最大 ${needed} 台のホストを収容したい。\n` +
+      `これを満たす最小のサブネット（＝最も大きいプレフィクス長）はどれか。`,
+    hint: '2^ホストビット数 − 2 ≧ 必要台数 を満たす最小のホストビット数を探す。',
+    answer,
+    distractors: [
+      { value: oneOff, why: `ホスト部が1ビット足りない。2^${hostBits - 1}−2＝${Math.pow(2, hostBits - 1) - 2}台では ${needed} 台に届かない。` },
+      { value: tooWide, why: 'ホスト部を1ビット多く取っている。条件は満たすが「最小のサブネット」ではない。' },
+      { value: asHostBits, why: `ホスト部のビット数（${hostBits}）を答えている。プレフィクス長は32からそれを引いた値。` },
+      { value: twoOff, why: 'ホスト部が2ビット足りない。収容台数が4分の1になってしまう。' },
+    ],
+    format: (v) => `/${v}`,
+    steps: [
+      step('必要なホストビット数', `2^n − 2 ≧ ${needed} を満たす最小のn`, hostBits, 'ビット'),
+      step('収容できる台数', `2^${hostBits} − 2`, Math.pow(2, hostBits) - 2, '台'),
+      step('プレフィクス長', `32 − ${hostBits}`, answer),
+    ],
+    note:
+      `/${prefix} なら ${Math.pow(2, hostBits) - 2} 台。` +
+      `1つ小さい /${prefix + 1} だと ${Math.pow(2, hostBits - 1) - 2} 台で足りない。`,
+  };
+}
+
+// ===== src/core/generators/radix.js ==============================
+// 基数変換・2の補数・情報量
+// 落とし穴：2の補数で「ビット反転して+1」の+1を忘れる、
+// 負数の表現範囲が正負で非対称（−2^(n−1) 〜 2^(n−1)−1）であること。
+
+register({
+  id: 'radix',
+  name: '基数変換・2の補数',
+  category: 'テクノロジ系',
+  tags: ['基数変換', '2進数', '16進数', '2の補数', 'ビット'],
+
+  gen(rng) {
+    return rng.pick([genConvert, genComplement, genRange, genShift])(rng);
+  },
+});
+
+const RADIX_NAME = { 2: '2進数', 8: '8進数', 10: '10進数', 16: '16進数' };
+
+// --- 基数変換 -----------------------------------------------------------
+function genConvert(rng) {
+  const from = rng.pick([2, 8, 10, 16]);
+  const to = rng.pick([2, 8, 10, 16].filter((r) => r !== from));
+
+  // 桁を取り違えるミスが成立するよう、ある程度大きい値にする
+  const value = rng.int(40, 4000);
+
+  const answer = value.toString(to).toUpperCase();
+  const src = value.toString(from).toUpperCase();
+
+  // 典型ミス：変換先を間違える（別の基数で答える）
+  const others = [2, 8, 10, 16].filter((r) => r !== to);
+  const wrongRadix = others.map((r) => ({
+    value: value.toString(r).toUpperCase(),
+    why: `${RADIX_NAME[r]}に変換している。設問は${RADIX_NAME[to]}。`,
+  }));
+
+  // 典型ミス：桁を1つずらす（末尾に0を足す＝基数倍してしまう）
+  const shifted = (value * to).toString(to).toUpperCase();
+  // 典型ミス：変換の向きを逆にする（元の表記をそのまま別基数として読む）
+  const reversed = parseInt(src, to).toString(to).toUpperCase();
+
+  return {
+    question:
+      `${RADIX_NAME[from]}の ${src} を${RADIX_NAME[to]}で表すと、どれになるか。`,
+    hint:
+      from === 10 || to === 10
+        ? '10進数を経由して考える。2進⇔16進なら4ビットずつまとめられる。'
+        : '2進数を経由すると確実。16進1桁＝2進4桁、8進1桁＝2進3桁。',
+    answer,
+    distractors: [
+      ...wrongRadix,
+      { value: shifted, why: `末尾に0を足している（${to}倍になっている）。桁の位置を確認する。` },
+      { value: reversed, why: '元の表記を変換先の基数として読み直している。まず元の基数で値を求める。' },
+    ],
+    steps: [
+      step(`${RADIX_NAME[from]}表記`, src, null),
+      step('10進数に直すと', String(value), value),
+      step(`${RADIX_NAME[to]}表記`, answer, null),
+    ],
+    note:
+      '2進⇔16進は4ビット区切り、2進⇔8進は3ビット区切りで一気に変換できる。' +
+      '10進が絡むときだけ地道に割り算する。',
+  };
+}
+
+// --- 2の補数 ------------------------------------------------------------
+function genComplement(rng) {
+  const bits = rng.pick([8, 8, 16]);
+  const n = rng.int(1, Math.pow(2, bits - 1) - 1);
+
+  const twos = (Math.pow(2, bits) - n) % Math.pow(2, bits); // −n の2の補数表現
+  const ones = Math.pow(2, bits) - 1 - n; // 1の補数（ビット反転のみ）
+
+  const pad = (v) => v.toString(2).padStart(bits, '0');
+
+  const answer = pad(twos);
+  const asOnes = pad(ones); // +1を忘れる
+  const asIs = pad(n); // 符号を付け忘れる
+  const plusTwo = pad((twos + 1) % Math.pow(2, bits)); // +2してしまう
+
+  return {
+    question:
+      `${bits}ビットの2進数で、10進数の −${n} を2の補数表現で表すと、どれになるか。`,
+    hint: '絶対値のビットを全反転して1を足す。',
+    answer,
+    distractors: [
+      { value: asOnes, why: 'ビット反転だけで止まっている（1の補数）。最後に1を足す。' },
+      { value: asIs, why: `+${n} をそのまま表している。負数は補数表現にする必要がある。` },
+      { value: plusTwo, why: '1ではなく2を足している。足すのは1だけ。' },
+    ],
+    steps: [
+      step(`+${n} の${bits}ビット表現`, pad(n), null),
+      step('全ビットを反転', pad(ones), null),
+      step('1を足す', `${pad(ones)} + 1`, null),
+      step('2の補数表現', answer, null),
+    ],
+    note:
+      `最上位ビットが1なら負数。検算は「元の数 + 補数 = 2^${bits}」で確かめられる（${n} + ${twos} = ${Math.pow(2, bits)}）。`,
+  };
+}
+
+// --- 表現範囲 -----------------------------------------------------------
+function genRange(rng) {
+  const bits = rng.pick([8, 16, 32]);
+  const signed = rng.bool();
+
+  const answer = signed ? -Math.pow(2, bits - 1) : 0;
+  const maxV = signed ? Math.pow(2, bits - 1) - 1 : Math.pow(2, bits) - 1;
+
+  if (signed) {
+    // 「最小値」を問う
+    const noSign = 0;
+    const offByOne = -(Math.pow(2, bits - 1) - 1); // 正負を対称だと思う
+    const full = -(Math.pow(2, bits) - 1);
+    const halfWrong = -Math.pow(2, bits - 2);
+
+    return {
+      question:
+        `${bits}ビットで符号付き整数を2の補数表現で表すとき、表せる最小の値はいくらか。`,
+      hint: '2の補数では負の側が1つ多く表せる（0が正の側に入るため）。',
+      answer,
+      distractors: [
+        { value: offByOne, why: `正負が対称だと考えている。2の補数の負側は1つ多く、−2^${bits - 1} まで表せる。` },
+        { value: full, why: '符号ビットを考慮していない。1ビットは符号に使われる。' },
+        { value: halfWrong, why: 'ビット数の数え方を1つ間違えている。符号を除くと残りは' + (bits - 1) + 'ビット。' },
+        { value: noSign, why: '符号なしとして考えている。設問は符号付き。' },
+      ],
+      format: (v) => String(v),
+      steps: [
+        step('符号を除いたビット数', `${bits} − 1`, bits - 1, 'ビット'),
+        step('表せる範囲', `−2^${bits - 1} 〜 2^${bits - 1} − 1`, null),
+        step('最小値', `−2^${bits - 1}`, answer),
+      ],
+      note: `範囲は ${answer} 〜 ${maxV}。負側が1つ多いのは、0が正の側に含まれるため。`,
+    };
+  }
+
+  // 符号なしの「最大値」を問う
+  const answerMax = Math.pow(2, bits) - 1;
+  const noMinus1 = Math.pow(2, bits);
+  const asSigned = Math.pow(2, bits - 1) - 1;
+  const asSignedNoMinus = Math.pow(2, bits - 1);
+
+  return {
+    question: `${bits}ビットで符号なし整数を表すとき、表せる最大の値はいくらか。`,
+    hint: '全ビットが1のときが最大。2^ビット数 は「個数」であって最大値ではない。',
+    answer: answerMax,
+    distractors: [
+      { value: noMinus1, why: '1を引いていない。0から数え始めるので最大値は 2^n − 1。' },
+      { value: asSigned, why: '符号付きとして考えている。設問は符号なしなので符号ビットは不要。' },
+      { value: asSignedNoMinus, why: '符号付きとして考えたうえに1も引いていない。' },
+    ],
+    format: (v) => fmtNum(v, 0),
+    steps: [
+      step('表せる個数', `2^${bits}`, Math.pow(2, bits), '通り'),
+      step('0から数えるので', `2^${bits} − 1`, answerMax),
+    ],
+    note: `範囲は 0 〜 ${answerMax}。「個数」と「最大値」が1ずれることに注意。`,
+  };
+}
+
+// --- シフト演算 ---------------------------------------------------------
+function genShift(rng) {
+  const shift = rng.int(1, 4);
+  const left = rng.bool();
+
+  // 右シフトのとき、元の値が小さいと答えが0に潰れる。
+  // 「シフト数を1つ多く数える」ミスの値まで0になり、誤答が作れなくなるため、
+  // 右シフトでは 2^(shift+1) より十分大きい値だけを使う（結果が必ず2以上になる）。
+  const min = left ? 3 : Math.pow(2, shift + 1) * 2;
+  const value = rng.int(min, min + 200);
+
+  const answer = left ? value * Math.pow(2, shift) : Math.floor(value / Math.pow(2, shift));
+
+  const opposite = left ? Math.floor(value / Math.pow(2, shift)) : value * Math.pow(2, shift);
+  const byShift = left ? value * shift : Math.floor(value / shift); // 2^nでなくnを掛ける
+  const offByOne = left ? value * Math.pow(2, shift + 1) : Math.floor(value / Math.pow(2, shift + 1));
+  // シフト数を1つ少なく数えるミス。上の offByOne と逆方向なので、片方が潰れても残る
+  const offByOneUnder = left
+    ? value * Math.pow(2, Math.max(1, shift - 1))
+    : Math.floor(value / Math.pow(2, Math.max(1, shift - 1)));
+  // 10進の桁をずらすミス（2進なのに10倍・1/10で考える）
+  const decimalShift = left ? value * 10 : Math.floor(value / 10);
+
+  return {
+    question:
+      `10進数の ${value} を2進数で表し、${left ? '左' : '右'}に ${shift} ビット` +
+      `${left ? '論理シフト' : '算術シフト'}した。結果を10進数で表すといくらか。` +
+      `${left ? 'なお、桁あふれは起こらないものとする。' : 'なお、あふれたビットは切り捨てる。'}`,
+    hint: `1ビット${left ? '左' : '右'}シフトは${left ? '2倍' : '2で割る'}のと同じ。`,
+    answer,
+    distractors: [
+      { value: opposite, why: `シフトの向きが逆。${left ? '左シフトは大きく' : '右シフトは小さく'}なる。` },
+      { value: byShift, why: `ビット数そのものを${left ? '掛けて' : '割って'}いる。正しくは2のシフト数乗。` },
+      { value: offByOne, why: 'シフト数を1つ多く数えている。' },
+      { value: offByOneUnder, why: 'シフト数を1つ少なく数えている。' },
+      { value: decimalShift, why: '10進数の桁でずらしている。2進数のシフトは2倍・1/2。' },
+    ],
+    format: (v) => fmtNum(v, 0),
+    steps: [
+      step('2進数表記', value.toString(2), null),
+      step(`${shift}ビット${left ? '左' : '右'}シフト`, answer.toString(2), null),
+      step('10進数に戻す', `${value} ${left ? '×' : '÷'} 2^${shift}`, answer),
+    ],
+    note: `nビットの${left ? '左' : '右'}シフトは2^n${left ? '倍' : 'で割る'}のと同じ。掛け算・割り算の高速化に使われる。`,
+  };
+}
+
+// ===== src/core/generators/pert.js ===============================
+// PERT / アローダイアグラム（クリティカルパス）
+// 落とし穴：最早結合点時刻は「入ってくる作業の最大値」、最遅は「出ていく作業の最小値」。
+// ここを取り違えると全部ずれる。
+
+register({
+  id: 'pert',
+  name: 'PERT・クリティカルパス',
+  category: 'マネジメント系',
+  tags: ['PERT', 'アローダイアグラム', 'クリティカルパス', '余裕日数'],
+
+  gen(rng) {
+    return rng.pick([genCritical, genFloat, genDelay])(rng);
+  },
+});
+
+// ネットワークの形は固定し、日数だけを乱数にする。
+// 図の描画とロジックを毎回作り直さずに済み、かつ「同じ形でも答えが変わる」ので暗記が効かない。
+//
+//        B
+//   A →(2)→   D
+//  (1)  ↓    (4)
+//        C  ↗
+//       (3)
+//
+// ノード: 1 → 2 → {3, 4} → 5
+// 作業: A(1→2), B(2→3), C(2→4), D(3→5), E(4→5)
+function buildNetwork(rng) {
+  // 各作業の日数。パスの合計が一意に決まる（同着にならない）よう後で確認する。
+  const d = {
+    A: rng.int(2, 8),
+    B: rng.int(2, 10),
+    C: rng.int(2, 10),
+    D: rng.int(2, 8),
+    E: rng.int(2, 8),
+  };
+
+  // 2本のパス: A→B→D と A→C→E
+  const path1 = d.A + d.B + d.D;
+  const path2 = d.A + d.C + d.E;
+
+  return { d, path1, path2 };
+}
+
+// 同着のネットワークは「クリティカルパスはどれか」の答えが一意にならないので引き直す。
+function buildDistinctNetwork(rng, minGap = 1) {
+  for (let i = 0; i < 40; i++) {
+    const net = buildNetwork(rng);
+    if (Math.abs(net.path1 - net.path2) >= minGap) return net;
+  }
+  return { d: { A: 3, B: 8, C: 4, D: 6, E: 5 }, path1: 17, path2: 12 };
+}
+
+const TASKS = [
+  { id: 'A', from: 1, to: 2 },
+  { id: 'B', from: 2, to: 3 },
+  { id: 'C', from: 2, to: 4 },
+  { id: 'D', from: 3, to: 5 },
+  { id: 'E', from: 4, to: 5 },
+];
+
+function taskTable(d) {
+  return TASKS.map((t) => `　作業${t.id}：${t.from}→${t.to}、所要日数 ${d[t.id]}日`).join('\n');
+}
+
+// アローダイアグラムのSVG。UI側でそのまま埋め込む。
+// 色は currentColor 系にして、ダークモードでも見えるようにする。
+function diagram(d, highlight) {
+  const on = (id) => (highlight && highlight.indexOf(id) >= 0 ? 'crit' : 'norm');
+  return `<svg viewBox="0 0 420 200" class="pert-svg" role="img" aria-label="アローダイアグラム">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g class="edges" marker-end="url(#ah)">
+    <line class="${on('A')}" x1="42"  y1="100" x2="118" y2="100"/>
+    <line class="${on('B')}" x1="142" y1="88"  x2="198" y2="50"/>
+    <line class="${on('C')}" x1="142" y1="112" x2="198" y2="150"/>
+    <line class="${on('D')}" x1="242" y1="50"  x2="298" y2="88"/>
+    <line class="${on('E')}" x1="242" y1="150" x2="298" y2="112"/>
+  </g>
+  <g class="labels">
+    <text x="80"  y="92">A(${d.A})</text>
+    <text x="160" y="62">B(${d.B})</text>
+    <text x="160" y="148">C(${d.C})</text>
+    <text x="272" y="62">D(${d.D})</text>
+    <text x="272" y="148">E(${d.E})</text>
+  </g>
+  <g class="nodes">
+    <circle cx="30"  cy="100" r="14"/><text x="30"  y="105" class="nd">1</text>
+    <circle cx="130" cy="100" r="14"/><text x="130" y="105" class="nd">2</text>
+    <circle cx="220" cy="40"  r="14"/><text x="220" y="45"  class="nd">3</text>
+    <circle cx="220" cy="160" r="14"/><text x="220" y="165" class="nd">4</text>
+    <circle cx="310" cy="100" r="14"/><text x="310" y="105" class="nd">5</text>
+  </g>
+</svg>`;
+}
+
+// --- 最短所要日数（クリティカルパス） -----------------------------------
+function genCritical(rng) {
+  const { d, path1, path2 } = buildDistinctNetwork(rng);
+
+  const answer = Math.max(path1, path2);
+  const shorter = Math.min(path1, path2);
+  const sumAll = d.A + d.B + d.C + d.D + d.E; // 全作業を足す
+  const withoutA = answer - d.A; // 共通部分を忘れる
+  const avg = Math.round((path1 + path2) / 2);
+
+  const critPath = path1 > path2 ? ['A', 'B', 'D'] : ['A', 'C', 'E'];
+
+  return {
+    question:
+      `次のアローダイアグラムで表される作業がある。\n${taskTable(d)}\n` +
+      `全ての作業を完了するのに必要な最短の日数は何日か。`,
+    hint: 'すべての経路の所要日数を出し、その中で最も長いものが答え。',
+    answer,
+    distractors: [
+      { value: shorter, why: '短いほうの経路を答えている。全作業の完了には長いほうを待つ必要がある。' },
+      { value: sumAll, why: '全作業の日数を単純に合計している。並行して進む作業がある。' },
+      { value: withoutA, why: '共通の作業Aを含めていない。すべての経路が作業Aを通る。' },
+      { value: avg, why: '2つの経路の平均を取っている。最短所要日数は最長経路で決まる。' },
+    ],
+    format: (v) => `${fmtNum(v, 0)}日`,
+    svg: diagram(d, critPath),
+    steps: [
+      step('経路1（A→B→D）', `${d.A} + ${d.B} + ${d.D}`, path1, '日'),
+      step('経路2（A→C→E）', `${d.A} + ${d.C} + ${d.E}`, path2, '日'),
+      step('最長の経路がクリティカルパス', `max(${path1}, ${path2})`, answer, '日'),
+    ],
+    note:
+      `クリティカルパスは ${critPath.join('→')}（${answer}日）。` +
+      `この経路上の作業が1日でも遅れると、全体が同じだけ遅れる。`,
+  };
+}
+
+// --- 余裕日数（フロート） -----------------------------------------------
+function genFloat(rng) {
+  const { d, path1, path2 } = buildDistinctNetwork(rng, 2);
+
+  const total = Math.max(path1, path2);
+  const slack = Math.abs(path1 - path2);
+  const answer = slack;
+
+  const nonCrit = path1 > path2 ? ['C', 'E'] : ['B', 'D'];
+  const nonCritLen = Math.min(path1, path2);
+
+  const asTotal = total; // 全体日数を答える
+  const asPath = nonCritLen; // 非クリティカル経路の長さ
+  const halfSlack = Math.floor(slack / 2);
+  const plusOne = slack + 1;
+
+  return {
+    question:
+      `次のアローダイアグラムで表される作業がある。\n${taskTable(d)}\n` +
+      `作業${nonCrit[0]}の余裕日数（トータルフロート）は何日か。`,
+    hint: '全体の所要日数を変えずに、その作業をあと何日遅らせられるか。',
+    answer,
+    distractors: [
+      { value: asPath, why: `作業${nonCrit[0]}を含む経路の所要日数を答えている。余裕はクリティカルパスとの差。` },
+      { value: asTotal, why: '全体の所要日数を答えている。余裕日数は経路間の差。' },
+      { value: plusOne, why: '1日多く見積もっている。差はちょうど経路長の引き算。' },
+      { value: halfSlack, why: '差を半分にしている。余裕はそのまま差の分だけある。' },
+    ],
+    format: (v) => `${fmtNum(v, 0)}日`,
+    svg: diagram(d, path1 > path2 ? ['A', 'B', 'D'] : ['A', 'C', 'E']),
+    steps: [
+      step('経路1（A→B→D）', `${d.A} + ${d.B} + ${d.D}`, path1, '日'),
+      step('経路2（A→C→E）', `${d.A} + ${d.C} + ${d.E}`, path2, '日'),
+      step('クリティカルパス', `max(${path1}, ${path2})`, total, '日'),
+      step('余裕日数', `${total} − ${nonCritLen}`, answer, '日'),
+    ],
+    note:
+      `作業${nonCrit.join('・')}のある経路は${nonCritLen}日で、クリティカルパスより${slack}日短い。` +
+      `その分だけ遅らせても全体には影響しない。クリティカルパス上の作業の余裕は常に0。`,
+  };
+}
+
+// --- 遅延の影響 ---------------------------------------------------------
+function genDelay(rng) {
+  const { d, path1, path2 } = buildDistinctNetwork(rng, 2);
+
+  const total = Math.max(path1, path2);
+  const critFirst = path1 > path2 ? 'B' : 'C'; // クリティカルパス上の作業
+  const delay = rng.int(2, 5);
+
+  const answer = total + delay; // クリティカルパス上なのでそのまま延びる
+  const noChange = total; // 影響しないと考える
+  const slack = Math.abs(path1 - path2);
+  // 「もう一方の経路の余裕日数の分だけ吸収される」と誤解するミス。
+  // 注：もう一方の経路＋遅延（Math.min(path1,path2)+delay）は total と一致しやすいので誤答に使わない。
+  const absorbed = total + Math.max(1, delay - slack);
+  const doubled = total + delay * 2; // 遅延を二重に数える
+  const justDelay = delay; // 遅延日数そのものを答える
+
+  return {
+    question:
+      `次のアローダイアグラムで表される作業がある。\n${taskTable(d)}\n` +
+      `作業${critFirst}が予定より ${delay} 日遅れた場合、全体の所要日数は何日になるか。`,
+    hint: 'まず遅れた作業がクリティカルパス上にあるかを確認する。',
+    answer,
+    distractors: [
+      { value: noChange, why: `作業${critFirst}はクリティカルパス上にあるため、遅れはそのまま全体に響く。` },
+      { value: absorbed, why: '余裕日数で吸収されると考えている。クリティカルパス上の作業に余裕は0。' },
+      { value: doubled, why: '遅延を二重に数えている。延びるのは遅れた日数分だけ。' },
+      { value: justDelay, why: '遅延日数そのものを答えている。設問は全体の所要日数。' },
+    ],
+    format: (v) => `${fmtNum(v, 0)}日`,
+    svg: diagram(d, path1 > path2 ? ['A', 'B', 'D'] : ['A', 'C', 'E']),
+    steps: [
+      step('元のクリティカルパス', `max(${path1}, ${path2})`, total, '日'),
+      step(`作業${critFirst}は クリティカルパス上`, '余裕日数は0', null),
+      step('全体の所要日数', `${total} + ${delay}`, answer, '日'),
+    ],
+    note:
+      'クリティカルパス上の作業は余裕が0なので、遅れがそのまま全体の遅れになる。' +
+      '逆に余裕のある作業なら、余裕の範囲内の遅れは全体に影響しない。',
+  };
+}
+
+// ===== src/core/generators/disk.js ===============================
+// 磁気ディスクのアクセス時間・RAIDの実効容量
+// 落とし穴：回転待ち時間は「1回転の半分」（平均だから）。
+// RAIDは方式ごとに「使える容量」と「壊れても平気な台数」が違う。
+
+
+register({
+  id: 'disk',
+  name: 'ディスクアクセス・RAID',
+  category: 'テクノロジ系',
+  tags: ['アクセス時間', '回転待ち', 'シーク', 'RAID'],
+
+  gen(rng) {
+    return rng.pick([genAccess, genRaidCapacity, genThroughput])(rng);
+  },
+});
+
+// --- アクセス時間 -------------------------------------------------------
+function genAccess(rng) {
+  // 回転数から1回転の時間を出す。実機に近い値を使う。
+  const rpm = rng.pick([3600, 4200, 5400, 7200, 10000, 15000]);
+  const rotMs = round(60000 / rpm, 4); // 1回転（ミリ秒）
+  const halfRot = round(rotMs / 2, 4); // 平均回転待ち
+
+  const seek = rng.pick([3, 4, 5, 8, 10, 12]); // 平均シーク時間（ミリ秒）
+  const blockKB = rng.pick([4, 8, 16, 32]); // 1ブロックのサイズ
+  const transferRate = rng.pick([20, 40, 50, 80, 100]); // Mバイト/秒
+
+  // 転送時間(ms) = ブロックサイズ(KB) / 転送速度(MB/s) → KB/(1000KB/ms相当)
+  const transfer = round((blockKB / 1024 / transferRate) * 1000, 4);
+
+  const answer = round(seek + halfRot + transfer, 4);
+
+  const fullRot = round(seek + rotMs + transfer, 4); // 回転待ちを1回転ぶんにする
+  const noRot = round(seek + transfer, 4); // 回転待ちを忘れる
+  const noSeek = round(halfRot + transfer, 4); // シークを忘れる
+  const noTransfer = round(seek + halfRot, 4); // 転送時間を忘れる
+
+  return {
+    question:
+      `回転数 ${rpm.toLocaleString('ja-JP')} 回転/分、平均シーク時間 ${seek} ミリ秒の磁気ディスクがある。\n` +
+      `データ転送速度は ${transferRate} Mバイト/秒で、${blockKB} Kバイトのブロックを1つ読み出す。\n` +
+      `平均アクセス時間は何ミリ秒か。`,
+    hint: 'アクセス時間 = シーク時間 + 平均回転待ち時間 + 転送時間。回転待ちは1回転の半分。',
+    answer,
+    distractors: [
+      { value: fullRot, why: '回転待ちを1回転ぶんにしている。「平均」なので半回転で計算する。' },
+      { value: noRot, why: '回転待ち時間が抜けている。目的のセクタが来るまで待つ時間が必要。' },
+      { value: noSeek, why: 'シーク時間が抜けている。まず目的のトラックまでヘッドを動かす。' },
+      { value: noTransfer, why: '転送時間が抜けている。データを読み出す時間もかかる。' },
+    ],
+    format: (v) => `${fmtNum(v, 3)}ミリ秒`,
+    steps: [
+      step('1回転の時間', `60000 / ${rpm}`, rotMs, 'ミリ秒'),
+      step('平均回転待ち', `${fmtNum(rotMs, 3)} / 2`, halfRot, 'ミリ秒'),
+      step('転送時間', `${blockKB}KB / ${transferRate}MB/s`, transfer, 'ミリ秒'),
+      step('合計', `${seek} + ${fmtNum(halfRot, 3)} + ${fmtNum(transfer, 3)}`, answer, 'ミリ秒'),
+    ],
+    note:
+      '回転待ちが「半分」なのは、目的のセクタがどこにあるかは運次第で、' +
+      '平均すると半回転ぶん待つことになるから。ここを1回転で計算するのが最頻出のミス。',
+  };
+}
+
+// --- RAIDの実効容量 -----------------------------------------------------
+function genRaidCapacity(rng) {
+  const level = rng.pick(['RAID0', 'RAID1', 'RAID5', 'RAID6', 'RAID10']);
+  const diskTB = rng.pick([1, 2, 4, 6, 8]);
+
+  // 方式ごとに必要な最小台数と、使える容量の割合が違う。
+  // 台数は3台以上にする（n=2 だと n−2=0 や n/2=n−1 になり誤答が潰れる）。
+  const spec = {
+    RAID0: { n: rng.int(3, 6), usable: (n) => n, desc: 'ストライピング（冗長性なし）' },
+    RAID1: { n: 2, usable: () => 1, desc: 'ミラーリング（同じ内容を2台に書く）' },
+    RAID5: { n: rng.int(3, 6), usable: (n) => n - 1, desc: 'パリティを1台ぶん分散' },
+    RAID6: { n: rng.int(4, 7), usable: (n) => n - 2, desc: 'パリティを2台ぶん分散' },
+    RAID10: { n: rng.pick([4, 6, 8]), usable: (n) => n / 2, desc: 'ミラーリング＋ストライピング' },
+  }[level];
+
+  const n = spec.n;
+  const usable = spec.usable(n);
+  const answer = round(usable * diskTB, 4);
+
+  // 「他の方式だと思って計算した値」を誤答にする。
+  // RAID0 は全ディスクが使えるため「合計を答えるミス」が正解と一致してしまうので、
+  // 各候補は正解と異なるものだけが buildChoices に採用される（重複は自動で捨てられる）。
+  const allDisks = round(n * diskTB, 4); // 冗長性を考えない（RAID0の答え）
+  const halfAll = round((n / 2) * diskTB, 4); // 全部ミラーだと思う（RAID10の答え）
+  const minusTwo = round((n - 2) * diskTB, 4); // パリティ2台ぶん（RAID6の答え）
+  const minusOne = round((n - 1) * diskTB, 4); // パリティ1台ぶん（RAID5の答え）
+  const oneDisk = round(diskTB, 4); // ミラーだと思う（RAID1の答え）
+  const doubled = round(n * diskTB * 2, 4); // 容量を二重に数える
+
+  return {
+    question:
+      `容量 ${diskTB} Tバイトのディスク ${n} 台で ${level} を構成する。\n` +
+      `実際にデータを格納できる容量は何Tバイトか。`,
+    hint: `${level} は${spec.desc}。冗長性のために使われるぶんは差し引く。`,
+    answer,
+    distractors: [
+      { value: allDisks, why: '全ディスクの合計を答えている。冗長性のために使われるぶんが引かれていない。' },
+      { value: minusOne, why: 'パリティを1台ぶんとして計算している（RAID5の考え方）。方式ごとの冗長分を確認する。' },
+      { value: minusTwo, why: 'パリティを2台ぶんとして計算している（RAID6の考え方）。方式ごとの冗長分を確認する。' },
+      { value: halfAll, why: '全体をミラーリングとして半分にしている（RAID10の考え方）。方式ごとに割合が違う。' },
+      { value: oneDisk, why: '1台ぶんしか使えないと考えている（RAID1の考え方）。方式ごとの冗長分を確認する。' },
+      { value: doubled, why: '容量を二重に数えている。実効容量が総容量を超えることはない。' },
+    ],
+    format: (v) => `${fmtNum(v, 2)}Tバイト`,
+    steps: [
+      step('方式', `${level}：${spec.desc}`, null),
+      step('使えるディスク数', `${n}台のうち`, spec.usable(n), '台ぶん'),
+      step('実効容量', `${spec.usable(n)} × ${diskTB}`, answer, 'Tバイト'),
+    ],
+    note:
+      'RAID0＝全部使えるが冗長性ゼロ、RAID1＝半分、RAID5＝1台ぶん減、' +
+      'RAID6＝2台ぶん減、RAID10＝半分。「何台まで壊れても大丈夫か」とセットで覚える。',
+  };
+}
+
+// --- 単位時間あたりの処理件数 -------------------------------------------
+function genThroughput(rng) {
+  const rpm = rng.pick([5400, 7200, 10000, 15000]);
+  const rotMs = round(60000 / rpm, 4);
+  const halfRot = round(rotMs / 2, 4);
+  const seek = rng.pick([4, 5, 8, 10]);
+  const transfer = rng.pick([0.5, 1, 2]);
+
+  const accessMs = round(seek + halfRot + transfer, 4);
+  const answer = round(1000 / accessMs, 4); // 1秒あたりの処理件数
+
+  const perMinute = round(60000 / accessMs, 4); // 分あたりで答える
+  const inverted = round(accessMs / 1000, 4); // 逆数を取り違える
+  const noHalf = round(1000 / (seek + rotMs + transfer), 4); // 回転待ちを1回転に
+
+  return {
+    question:
+      `回転数 ${rpm.toLocaleString('ja-JP')} 回転/分、平均シーク時間 ${seek} ミリ秒、` +
+      `1回の転送時間 ${fmtNum(transfer, 1)} ミリ秒のディスクがある。\n` +
+      `このディスクは1秒間に最大何回のアクセスを処理できるか。`,
+    hint: 'まず1回のアクセスにかかる時間を出し、1000ミリ秒をそれで割る。',
+    answer,
+    distractors: [
+      { value: perMinute, why: '1分あたりの回数を答えている。設問は1秒あたり。' },
+      { value: noHalf, why: '回転待ちを1回転ぶんで計算している。平均は半回転。' },
+      { value: inverted, why: '割る向きが逆。1回にかかる時間ではなく、1秒に何回できるかを聞かれている。' },
+    ],
+    format: (v) => `${fmtNum(v, 1)}回`,
+    steps: [
+      step('平均回転待ち', `60000 / ${rpm} / 2`, halfRot, 'ミリ秒'),
+      step('1回のアクセス時間', `${seek} + ${fmtNum(halfRot, 3)} + ${fmtNum(transfer, 1)}`, accessMs, 'ミリ秒'),
+      step('1秒あたりの回数', `1000 / ${fmtNum(accessMs, 3)}`, answer, '回'),
+    ],
+    note: '「1回にかかる時間」から「1秒に何回できるか」を出すには、1000ミリ秒をその時間で割る。',
+  };
+}
+
+// ===== src/core/generators/coding.js =============================
+// 符号化・圧縮（ハフマン符号、平均符号長、圧縮率）
+// 落とし穴：平均符号長は「出現率×符号長」の加重平均。
+// 圧縮率は「圧縮後÷圧縮前」か「削減した割合」か、設問の定義を確認する。
+
+
+register({
+  id: 'coding',
+  name: 'ハフマン符号・圧縮率',
+  category: 'テクノロジ系',
+  tags: ['ハフマン符号', '平均符号長', '圧縮率', '符号化'],
+
+  gen(rng) {
+    return rng.pick([genAvgLength, genCompression, genFixedVsVariable])(rng);
+  },
+});
+
+// ハフマン木を実際に構築して符号長を求める。
+// 手で木を書かなくても答えが出せるよう、結果だけを使う。
+function huffmanLengths(freqs) {
+  // ノード: { w, len } — len はそのノード配下の全記号の符号長を後で加算する
+  const nodes = freqs.map((w, i) => ({ w, leaves: [i] }));
+  const lengths = new Array(freqs.length).fill(0);
+
+  const pool = nodes.slice();
+  while (pool.length > 1) {
+    // 重みの小さい2つを取り出す（同値なら添字の小さい方＝決定的にする）
+    pool.sort((a, b) => a.w - b.w || a.leaves[0] - b.leaves[0]);
+    const x = pool.shift();
+    const y = pool.shift();
+    // この2つをまとめる＝配下の全記号の符号長が1ずつ伸びる
+    for (const i of x.leaves) lengths[i]++;
+    for (const i of y.leaves) lengths[i]++;
+    pool.push({ w: x.w + y.w, leaves: x.leaves.concat(y.leaves) });
+  }
+  return lengths;
+}
+
+// 出現率の組を作る。合計が1になり、ハフマン木が一意に決まりやすい形にする。
+function makeFreqs(rng) {
+  // 分母を100にして、偏りのある分布を作る（ハフマンが効く形）。
+  //
+  // 均等に近い分布（例 35/30/25/10）は全記号の符号長が同じになり、
+  // 平均符号長＝単純平均＝最大＝最小＝固定長 と全て一致して誤答が作れない。
+  // ハフマンを使う意味自体が薄い分布なので、出題としても外す。
+  const patterns = [
+    [50, 25, 13, 12],
+    [40, 30, 20, 10],
+    [45, 25, 20, 10],
+    [55, 20, 15, 10],
+    [60, 20, 12, 8],
+    [50, 20, 15, 10, 5],
+    [40, 25, 15, 12, 8],
+    [45, 20, 15, 12, 8],
+    [55, 15, 12, 10, 8],
+  ];
+  const p = rng.pick(patterns);
+  const names = ['A', 'B', 'C', 'D', 'E'].slice(0, p.length);
+  return names.map((name, i) => ({ name, pct: p[i] }));
+}
+
+// --- 平均符号長 ---------------------------------------------------------
+function genAvgLength(rng) {
+  const freqs = makeFreqs(rng);
+  const lens = huffmanLengths(freqs.map((f) => f.pct));
+
+  const answer = round(
+    freqs.reduce((s, f, i) => s + (f.pct / 100) * lens[i], 0),
+    4
+  );
+
+  const n = freqs.length;
+  const fixedBits = Math.ceil(Math.log2(n)); // 固定長で表す場合のビット数
+  const simpleAvg = round(lens.reduce((s, l) => s + l, 0) / n, 4); // 単純平均
+  const maxLen = Math.max(...lens);
+  const minLen = Math.min(...lens);
+
+  const table = freqs
+    .map((f, i) => `　${f.name}：出現率 ${f.pct}%、符号長 ${lens[i]}ビット`)
+    .join('\n');
+
+  return {
+    question:
+      `ある文字列を、次のハフマン符号で符号化した。\n${table}\n` +
+      `1文字あたりの平均符号長は何ビットか。`,
+    hint: '出現率を重みとした加重平均。よく出る文字ほど短い符号が割り当てられている。',
+    answer,
+    distractors: [
+      { value: simpleAvg, why: '符号長の単純平均を取っている。出現率という重みを使っていない。' },
+      { value: fixedBits, why: `${n}種類を固定長で表した場合のビット数。ハフマンは可変長なので短くなる。` },
+      { value: maxLen, why: '最も長い符号の長さを答えている。平均は全体の重み付き和。' },
+      { value: minLen, why: '最も短い符号の長さを答えている。平均は全体の重み付き和。' },
+    ],
+    format: (v) => `${fmtNum(v, 3)}ビット`,
+    steps: [
+      step('公式', '平均符号長 = Σ(出現率 × 符号長)', null),
+      step(
+        '代入',
+        freqs.map((f, i) => `${fmtNum(f.pct / 100, 2)}×${lens[i]}`).join(' + '),
+        answer,
+        'ビット'
+      ),
+    ],
+    note:
+      `${n}種類を固定長で表すと${fixedBits}ビット必要だが、ハフマン符号なら平均${fmtNum(answer, 3)}ビット。` +
+      `よく出る文字に短い符号を割り当てることで縮んでいる。`,
+  };
+}
+
+// --- 圧縮率 -------------------------------------------------------------
+function genCompression(rng) {
+  // before=100 は避ける。削減量（Mバイト）と削減率（%）が同じ数値になり、
+  // 「単位を取り違えるミス」が正解と区別できなくなる。
+  const before = rng.pick([120, 150, 200, 240, 300, 400, 500, 600, 750, 800]);
+  // ratio=0.5 も避ける。「圧縮後の割合」と「削減した割合」がどちらも50%で一致してしまう。
+  const ratio = rng.pick([0.2, 0.25, 0.3, 0.4, 0.6, 0.75]);
+  const after = round(before * ratio, 4);
+
+  // 「圧縮率」の定義は問題文で明示する（曖昧さを残さない）
+  const answer = round((1 - ratio) * 100, 4); // 削減した割合(%)
+
+  const asRatio = round(ratio * 100, 4); // 圧縮後の割合を答える
+  const asTimes = round((1 / ratio) * 100, 4); // 何倍縮んだかを%にする
+  // 削減量（Mバイト）。before×(1−ratio) が ratio×100 と偶然一致する組があるため、
+  // そのときは buildChoices 側で自動的に捨てられる。
+  const asDiff = round(before - after, 4);
+  const overAfter = round(((before - after) / after) * 100, 4); // 分母を圧縮後にする
+
+  return {
+    question:
+      `${before} Mバイトのファイルを圧縮したところ、${fmtNum(after, 1)} Mバイトになった。\n` +
+      `このときの圧縮率（元のサイズからどれだけ削減できたかの割合）は何%か。`,
+    hint: '削減できた量が元のサイズの何%にあたるかを求める。',
+    answer,
+    distractors: [
+      { value: asRatio, why: '圧縮後のサイズが元の何%かを答えている。設問は「削減できた割合」。' },
+      { value: asDiff, why: '削減した量（Mバイト）を答えている。設問は割合（%）。' },
+      { value: overAfter, why: '圧縮後のサイズを分母にしている。基準は圧縮前のサイズ。' },
+      { value: asTimes, why: '元のサイズが圧縮後の何倍かを計算している。削減率とは別の指標。' },
+    ],
+    format: (v) => `${fmtNum(v, 1)}%`,
+    steps: [
+      step('削減できた量', `${before} − ${fmtNum(after, 1)}`, round(before - after, 4), 'Mバイト'),
+      step('元のサイズに対する割合', `${fmtNum(before - after, 1)} / ${before}`, round(1 - ratio, 4)),
+      step('%表記', `${fmtNum(1 - ratio, 4)} × 100`, answer, '%'),
+    ],
+    note:
+      '「圧縮率」は文脈によって「圧縮後の割合」を指すこともある。' +
+      '設問がどちらの定義かを必ず確認する（この問題は削減した割合）。',
+  };
+}
+
+// --- 固定長との比較 -----------------------------------------------------
+function genFixedVsVariable(rng) {
+  const freqs = makeFreqs(rng);
+  const lens = huffmanLengths(freqs.map((f) => f.pct));
+  const n = freqs.length;
+
+  const avg = freqs.reduce((s, f, i) => s + (f.pct / 100) * lens[i], 0);
+  const fixedBits = Math.ceil(Math.log2(n));
+  const chars = rng.int(10, 90) * 100; // 文字数
+
+  // 削減できるビット数
+  const answer = round(chars * (fixedBits - avg), 0);
+
+  const totalHuffman = round(chars * avg, 0); // ハフマンでの総ビット数
+  const totalFixed = round(chars * fixedBits, 0); // 固定長での総ビット数
+  const perChar = round(fixedBits - avg, 4); // 1文字あたりの削減
+
+  const table = freqs
+    .map((f, i) => `　${f.name}：出現率 ${f.pct}%、符号長 ${lens[i]}ビット`)
+    .join('\n');
+
+  return {
+    question:
+      `${n}種類の文字からなる ${chars.toLocaleString('ja-JP')} 文字のデータがある。\n` +
+      `固定長で符号化した場合と、次のハフマン符号を使った場合を比べる。\n${table}\n` +
+      `ハフマン符号を使うと、全体で何ビット削減できるか。`,
+    hint: `${n}種類なら固定長は${fixedBits}ビット。1文字あたりの差に文字数を掛ける。`,
+    answer,
+    distractors: [
+      { value: totalHuffman, why: 'ハフマン符号での総ビット数を答えている。設問は削減できるビット数（差）。' },
+      { value: totalFixed, why: '固定長での総ビット数を答えている。設問は削減できるビット数（差）。' },
+      { value: perChar, why: '1文字あたりの削減ビット数で止まっている。文字数を掛ける。' },
+    ],
+    format: (v) => `${fmtNum(v, 0)}ビット`,
+    steps: [
+      step('固定長のビット数', `${n}種類 → 2^${fixedBits} ≧ ${n}`, fixedBits, 'ビット'),
+      step('ハフマンの平均符号長', 'Σ(出現率 × 符号長)', round(avg, 4), 'ビット'),
+      step('1文字あたりの削減', `${fixedBits} − ${fmtNum(avg, 4)}`, round(fixedBits - avg, 4), 'ビット'),
+      step('全体の削減', `${chars} × ${fmtNum(fixedBits - avg, 4)}`, answer, 'ビット'),
+    ],
+    note:
+      `固定長なら${totalFixed.toLocaleString('ja-JP')}ビット、ハフマンなら${totalHuffman.toLocaleString('ja-JP')}ビット。` +
+      `出現率に偏りがあるほどハフマンの効果が大きくなる。`,
+  };
+}
+
+// ===== src/core/generators/probability.js ========================
+// 確率・期待値
+// 落とし穴：条件付き確率で分母を全体にしてしまう、
+// 「少なくとも1つ」を余事象で解かずに足し算してしまう。
+
+
+register({
+  id: 'probability',
+  name: '確率・期待値',
+  category: 'テクノロジ系',
+  tags: ['確率', '条件付き確率', 'ベイズ', '期待値', '余事象'],
+
+  gen(rng) {
+    return rng.pick([genAtLeastOne, genConditional, genExpected])(rng);
+  },
+});
+
+// --- 少なくとも1つ（余事象） --------------------------------------------
+function genAtLeastOne(rng) {
+  const n = rng.int(3, 6);
+  // 故障率は「n個すべて無事」の確率が半端な値にならない範囲で選ぶ
+  const p = rng.pick([0.01, 0.02, 0.05, 0.1, 0.2]);
+
+  const noneFail = Math.pow(1 - p, n);
+  const answer = round(1 - noneFail, 6);
+
+  const summed = round(Math.min(p * n, 0.999999), 6); // 単純に足す
+  const allFail = round(Math.pow(p, n), 6); // 全部故障する確率
+  const complement = round(noneFail, 6); // 余事象を答えてしまう
+  const exactlyOne = round(n * p * Math.pow(1 - p, n - 1), 6); // ちょうど1個
+
+  return {
+    question:
+      `ある装置が1年以内に故障する確率は ${fmtPct(p, 0)} である。\n` +
+      `この装置を ${n} 台使うシステムで、1年以内に少なくとも1台が故障する確率はいくらか。\n` +
+      `なお、各装置の故障は互いに独立とする。`,
+    hint: '「少なくとも1つ」は「1つも起きない」の余事象で考える。',
+    answer,
+    distractors: [
+      { value: summed, why: '各装置の故障率を単純に足している。確率は足し算では合成できない（重複を二重に数える）。' },
+      { value: complement, why: '「1台も故障しない確率」を答えている。最後に1から引く。' },
+      { value: allFail, why: '「全台が故障する確率」を求めている。設問は「少なくとも1台」。' },
+      { value: exactlyOne, why: '「ちょうど1台だけ故障する確率」。2台以上故障する場合も含める必要がある。' },
+    ],
+    format: (v) => fmtNum(v, 4),
+    steps: [
+      step('1台も故障しない確率', `(1 − ${fmtNum(p, 2)})^${n}`, round(noneFail, 6)),
+      step('その余事象', `1 − ${fmtNum(noneFail, 6)}`, answer),
+    ],
+    note:
+      `1台あたり${fmtPct(p, 0)}でも、${n}台あると${fmtPct(answer, 1)}まで上がる。` +
+      `台数が増えるほど「どれかが壊れる」確率は急に高くなる — 直列構成の稼働率が下がる理由と同じ考え方。`,
+  };
+}
+
+// --- 条件付き確率（ベイズ） ---------------------------------------------
+function genConditional(rng) {
+  // 検査の問題。数字は整数で割り切れるよう、母数を大きめに取る。
+  const total = rng.pick([1000, 2000, 10000]);
+  const defectRate = rng.pick([0.01, 0.02, 0.05]); // 不良品の割合
+  const detectRate = rng.pick([0.9, 0.95, 0.98]); // 不良品を正しく検出する率
+  const falseRate = rng.pick([0.02, 0.05, 0.1]); // 良品を誤って不良と判定する率
+
+  const defective = total * defectRate;
+  const good = total - defective;
+
+  const truePositive = defective * detectRate; // 不良品で「不良」判定
+  const falsePositive = good * falseRate; // 良品で「不良」判定
+  const positive = truePositive + falsePositive; // 「不良」判定の総数
+
+  const answer = round(truePositive / positive, 6); // 判定が不良のとき本当に不良の確率
+
+  const asDetect = round(detectRate, 6); // 検出率と混同
+  const asDefect = round(defectRate, 6); // 事前確率と混同
+  const overTotal = round(truePositive / total, 6); // 分母を全体にする
+  const inverted = round(falsePositive / positive, 6); // 誤検出のほうを答える
+
+  return {
+    question:
+      `製品全体の ${fmtPct(defectRate, 0)} が不良品である。\n` +
+      `検査装置は、不良品を ${fmtPct(detectRate, 0)} の確率で「不良」と判定するが、\n` +
+      `良品も ${fmtPct(falseRate, 0)} の確率で誤って「不良」と判定してしまう。\n` +
+      `ある製品が「不良」と判定されたとき、それが実際に不良品である確率はいくらか。`,
+    hint: '「不良と判定された全体」を分母に、「本当に不良だったもの」を分子にする。',
+    answer,
+    distractors: [
+      { value: asDetect, why: '検出率をそのまま答えている。これは「不良品が正しく判定される確率」で、向きが逆。' },
+      { value: overTotal, why: '分母を製品全体にしている。条件付き確率の分母は「不良と判定されたもの」だけ。' },
+      { value: asDefect, why: '全体の不良率（事前確率）を答えている。検査結果という条件が反映されていない。' },
+      { value: inverted, why: '「不良と判定されたが実は良品」の確率。設問はその逆。' },
+    ],
+    format: (v) => fmtNum(v, 4),
+    steps: [
+      step(`${total.toLocaleString('ja-JP')}個で考える`, `不良品 ${defective} 個、良品 ${good} 個`, null),
+      step('不良品で「不良」判定', `${defective} × ${fmtNum(detectRate, 2)}`, round(truePositive, 2), '個'),
+      step('良品で「不良」判定', `${good} × ${fmtNum(falseRate, 2)}`, round(falsePositive, 2), '個'),
+      step('「不良」判定の合計', `${fmtNum(truePositive, 2)} + ${fmtNum(falsePositive, 2)}`, round(positive, 2), '個'),
+      step('そのうち本当に不良', `${fmtNum(truePositive, 2)} / ${fmtNum(positive, 2)}`, answer),
+    ],
+    note:
+      `検出率${fmtPct(detectRate, 0)}と高性能に見えても、実際に不良である確率は${fmtPct(answer, 1)}にとどまる。` +
+      `元の不良率が低いと、誤検出のほうが数で上回るため。具体的な個数で考えると直感的に分かる。`,
+  };
+}
+
+// --- 期待値 -------------------------------------------------------------
+function genExpected(rng) {
+  const names = ['計画A', '計画B', '計画C', '計画D'];
+
+  // 誤答が正解と衝突しない組が出るまで引き直す。
+  // 「加重平均＝単純平均」「合計＝期待値」になる配分は実際に発生し、
+  // 除外条件を数式で書き並べるより実値を比べるほうが確実（EVMで確立した方式）。
+  let items, answer, simpleAvg, sum, maxProfit, onlyPositive;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const n = rng.int(3, 4);
+
+    // 確率の合計が1になる組を作る（10%刻み）
+    const parts = [];
+    let rest = 10;
+    for (let i = 0; i < n - 1; i++) {
+      const max = rest - (n - 1 - i);
+      parts.push(rng.int(1, Math.max(1, max)));
+      rest -= parts[parts.length - 1];
+    }
+    parts.push(rest);
+
+    // 利益は互いに異なる値にする（同値だと誤答が潰れる）
+    const profits = rng.sample([-200, -100, -50, 100, 200, 300, 500, 800], n);
+
+    items = names.slice(0, n).map((name, i) => ({ name, p: parts[i] / 10, profit: profits[i] }));
+
+    answer = round(items.reduce((s, it) => s + it.p * it.profit, 0), 4);
+    simpleAvg = round(profits.reduce((s, v) => s + v, 0) / n, 4);
+    sum = round(profits.reduce((s, v) => s + v, 0), 4);
+    maxProfit = round(Math.max(...profits), 4);
+    onlyPositive = round(
+      items.filter((it) => it.profit > 0).reduce((s, it) => s + it.p * it.profit, 0),
+      4
+    );
+
+    // 正解を含めた5つの値がすべて異なれば、誤答が3つ残ることが保証される
+    const vs = [answer, simpleAvg, sum, maxProfit, onlyPositive];
+    if (new Set(vs.map((v) => v.toFixed(4))).size === vs.length) break;
+  }
+
+  const table = items
+    .map((it) => `　${it.name}：確率 ${fmtPct(it.p, 0)}、損益 ${it.profit >= 0 ? '+' : '−'}${Math.abs(it.profit)}万円`)
+    .join('\n');
+
+  return {
+    question:
+      `ある投資について、起こりうる結果とその確率が次のとおり見込まれている。\n${table}\n` +
+      `この投資の損益の期待値はいくらか。`,
+    hint: '期待値 = Σ(確率 × その場合の値)。確率を重みとした加重平均。',
+    answer,
+    distractors: [
+      { value: simpleAvg, why: '単純平均を取っている。確率という重みを使っていない。' },
+      { value: sum, why: '損益を合計しただけ。期待値は確率を掛けてから足す。' },
+      { value: onlyPositive, why: 'マイナスの結果を計算に入れていない。損失も期待値に含める。' },
+      { value: maxProfit, why: '最もうまくいった場合の値を答えている。期待値は全ケースの重み付き平均。' },
+    ],
+    format: (v) => `${v >= 0 ? '+' : '−'}${fmtNum(Math.abs(v), 1)}万円`,
+    steps: [
+      step('公式', '期待値 = Σ(確率 × 損益)', null),
+      step(
+        '代入',
+        items.map((it) => `${fmtNum(it.p, 1)}×(${it.profit})`).join(' + '),
+        answer,
+        '万円'
+      ),
+    ],
+    note:
+      answer >= 0
+        ? `期待値がプラスなので、この投資を何度も繰り返せば平均的には利益が出る計算。`
+        : `期待値がマイナスなので、繰り返すほど損失が積み上がる計算になる。`,
+  };
+}
+
+// ===== src/core/generators/os.js =================================
+// OS（ターンアラウンドタイム・ページング）
+// 落とし穴：ターンアラウンドタイムは「到着から完了まで」で待ち時間を含む。
+// ページングの実効アクセス時間は、フォールト率が極小でも影響が大きい。
+
+
+register({
+  id: 'os',
+  name: 'ターンアラウンド・ページング',
+  category: 'テクノロジ系',
+  tags: ['ターンアラウンドタイム', 'スケジューリング', 'ページフォールト', '仮想記憶'],
+
+  gen(rng) {
+    return rng.pick([genTurnaround, genPageFault, genFaultRate])(rng);
+  },
+});
+
+// --- ターンアラウンドタイム（到着順） -----------------------------------
+function genTurnaround(rng) {
+  // ジョブは到着時刻と処理時間を持つ。到着順（FCFS）で処理する。
+  const n = 3;
+
+  // 誤答（処理時間・待ち時間・完了時刻・平均）が正解と衝突しない組が出るまで引き直す。
+  // 待ち時間0や、たまたま処理時間＝ターンアラウンドになる組が実際に発生する。
+  let jobs, target, answer, asBurst, asWait, asFinish, avgTurn;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    jobs = [];
+    let t = 0;
+    for (let i = 0; i < n; i++) {
+      jobs.push({
+        name: String.fromCharCode(65 + i),
+        arrive: t,
+        burst: rng.int(2, 12),
+      });
+      t += rng.int(1, 5); // 次のジョブは少しあとに到着
+    }
+
+    // FCFSで実行し、各ジョブの完了時刻を求める
+    let clock = 0;
+    for (const j of jobs) {
+      clock = Math.max(clock, j.arrive) + j.burst;
+      j.finish = clock;
+      j.turnaround = j.finish - j.arrive;
+      j.wait = j.turnaround - j.burst;
+    }
+
+    target = jobs[rng.int(1, n - 1)]; // 2番目以降（待ちが発生するもの）を問う
+    answer = target.turnaround;
+
+    asBurst = target.burst; // 処理時間だけを答える
+    asWait = target.wait; // 待ち時間だけを答える
+    asFinish = target.finish; // 完了時刻をそのまま答える
+    avgTurn = round(jobs.reduce((s, j) => s + j.turnaround, 0) / n, 4);
+
+    // 待ちが実際に発生していて、かつ4つの値が互いに異なることを求める
+    const vs = [answer, asBurst, asWait, asFinish, avgTurn];
+    if (target.wait > 0 && new Set(vs.map((v) => Number(v).toFixed(4))).size === vs.length) break;
+  }
+
+  const table = jobs
+    .map((j) => `　ジョブ${j.name}：到着時刻 ${j.arrive}秒、処理時間 ${j.burst}秒`)
+    .join('\n');
+
+  return {
+    question:
+      `1つのCPUで、次の3つのジョブを到着順に処理する。\n${table}\n` +
+      `ジョブ${target.name}のターンアラウンドタイムは何秒か。`,
+    hint: 'ターンアラウンドタイム ＝ 完了時刻 − 到着時刻。待たされた時間も含む。',
+    answer,
+    distractors: [
+      { value: asBurst, why: '処理時間だけを答えている。前のジョブを待った時間も含める。' },
+      { value: asFinish, why: '完了時刻をそのまま答えている。到着時刻を引く必要がある。' },
+      { value: asWait, why: '待ち時間だけを答えている。ターンアラウンドは待ち時間＋処理時間。' },
+      { value: avgTurn, why: '3つのジョブの平均を答えている。設問は特定のジョブ。' },
+    ],
+    format: (v) => `${fmtNum(v, 1)}秒`,
+    steps: [
+      ...jobs.map((j) =>
+        step(
+          `ジョブ${j.name}`,
+          `到着${j.arrive}秒 → 開始${j.finish - j.burst}秒 → 完了${j.finish}秒`,
+          null
+        )
+      ),
+      step(
+        `ジョブ${target.name}のターンアラウンド`,
+        `${target.finish} − ${target.arrive}`,
+        answer,
+        '秒'
+      ),
+    ],
+    note:
+      `ジョブ${target.name}は ${target.wait}秒 待たされてから ${target.burst}秒 かけて処理された。` +
+      `到着順（FCFS）では、先に長いジョブが来ると後続が大きく待たされる。`,
+  };
+}
+
+// --- ページングの実効アクセス時間 ---------------------------------------
+function genPageFault(rng) {
+  const memNs = rng.pick([50, 80, 100, 120]); // 主記憶アクセス時間（ナノ秒）
+  const faultMs = rng.pick([2, 5, 8, 10]); // ページフォールト処理時間（ミリ秒）
+  const faultRate = rng.pick([0.0001, 0.0005, 0.001, 0.002]); // フォールト率
+
+  const faultNs = faultMs * 1e6; // ミリ秒 → ナノ秒
+  const answer = round((1 - faultRate) * memNs + faultRate * faultNs, 2);
+
+  // 「単位変換を忘れる」と「フォールトを無視する」は、フォールト率が極小のため
+  // どちらも主記憶時間とほぼ同値になり、誤答として区別できない。
+  // 代わりに、桁を取り違える／加重を掛け忘れるといった区別できるミスを使う。
+  const swapped = round(faultRate * memNs + (1 - faultRate) * faultNs, 2); // 率を逆に
+  const noWeight = round(memNs + faultNs, 2); // 確率を掛けずに単純に足す
+  const kiloOnly = round((1 - faultRate) * memNs + faultRate * faultMs * 1e3, 2); // ミリ→マイクロ止まり
+  const tenFold = round((1 - faultRate) * memNs + faultRate * faultNs * 10, 2); // 桁を1つ多く
+  const onlyFault = round(faultRate * faultNs, 2); // 主記憶側を足し忘れ
+
+  return {
+    question:
+      `主記憶のアクセス時間が ${memNs} ナノ秒、ページフォールト1回の処理に ${faultMs} ミリ秒かかる仮想記憶システムがある。\n` +
+      `ページフォールト率が ${fmtNum(faultRate * 100, 4)}%（${faultRate}）のとき、実効アクセス時間は何ナノ秒か。`,
+    hint: '加重平均。ただしミリ秒とナノ秒の単位を揃えてから計算する（1ミリ秒＝10⁶ナノ秒）。',
+    answer,
+    distractors: [
+      { value: kiloOnly, why: 'ミリ秒→マイクロ秒までしか直していない。1ミリ秒＝1,000,000ナノ秒。' },
+      { value: swapped, why: 'フォールト率とヒット率を逆に掛けている。ほとんどはフォールトしない。' },
+      { value: onlyFault, why: 'フォールト側だけを計算している。フォールトしない大多数のアクセスも含める。' },
+      { value: noWeight, why: '確率を掛けずに単純に足している。加重平均なのでそれぞれの発生率を掛ける。' },
+      { value: tenFold, why: '桁を1つ多く見積もっている。1ミリ秒は10⁶ナノ秒。' },
+    ],
+    // 1998000.1ナノ秒 のような桁では比較できないので、大きければミリ秒に繰り上げる
+    format: (v) => fmtNs(v),
+    steps: [
+      // 式の中に既に「= …ナノ秒」と書いているので、value は持たせない（二重表示になる）
+      step('フォールト時間を揃える', `${faultMs} ミリ秒 = ${fmtInt(faultNs)} ナノ秒`, null),
+      // 選択肢は fmtNs でマイクロ秒・ミリ秒に繰り上がる。
+      // 解説の最終行もその表記で締めないと「解説の値と正解が違う」ように見えるため、
+      // ナノ秒での計算結果を出したうえで、最後に単位を直した値を正解として置く。
+      step(
+        '加重平均',
+        `${fmtNum(1 - faultRate, 5)}×${memNs} + ${faultRate}×${fmtInt(faultNs)}`,
+        round(answer, 2),
+        'ナノ秒'
+      ),
+      // 式の中に変換後の値を書いてあるので value は持たせない（持たせると二重表示になる）。
+      // ただし検証は「値を持つ最後のstepが正解と一致すること」を見るので、
+      // 上の加重平均ステップが answer と一致していることでその条件を満たしている。
+      step('読みやすい単位に直す', `${fmtNum(answer, 2)} ナノ秒 = ${fmtNs(answer)}`, null),
+    ],
+    note:
+      `フォールト率がわずか${fmtNum(faultRate * 100, 4)}%でも、実効アクセス時間は主記憶単体の` +
+      `${fmtNum(answer / memNs, 1)}倍になる。フォールト1回のコストが桁違いに大きいため。`,
+  };
+}
+
+// --- 許容できるフォールト率を逆算 ---------------------------------------
+function genFaultRate(rng) {
+  const memNs = rng.pick([50, 100]);
+  const faultMs = rng.pick([2, 5, 10]);
+  const faultNs = faultMs * 1e6;
+  const targetRatio = rng.pick([1.1, 1.2, 1.5, 2.0]); // 実効時間を主記憶の何倍以内に収めたいか
+
+  const targetNs = memNs * targetRatio;
+  // targetNs = (1-f)*mem + f*fault  →  f = (targetNs - mem) / (fault - mem)
+  const answer = round((targetNs - memNs) / (faultNs - memNs), 8);
+
+  // (target−mem)/faultNs は、faultNs ≫ memNs のため正解とほぼ同値になり誤答にならない。
+  // 桁や向きを取り違えるミスのうち、値がはっきり異なるものだけを使う。
+  const inverted = round((faultNs - memNs) / (targetNs - memNs), 8); // 分子分母が逆
+  const simple = round(memNs / faultNs, 8); // 目標値を使わない
+  const noSub = round(targetNs / faultNs, 8); // 分子からmemを引き忘れ
+  const tenFold = round(((targetNs - memNs) / (faultNs - memNs)) * 10, 8); // 桁を1つ間違える
+  const asRatio = round(targetRatio, 8); // 倍率をそのまま答える
+
+  return {
+    question:
+      `主記憶のアクセス時間が ${memNs} ナノ秒、ページフォールト1回の処理に ${faultMs} ミリ秒かかる。\n` +
+      `実効アクセス時間を主記憶単体の ${fmtNum(targetRatio, 1)} 倍（${fmtNum(targetNs, 0)} ナノ秒）以内に抑えたい。\n` +
+      `ページフォールト率はいくら以下であればよいか。`,
+    hint: '実効 = (1−f)×主記憶 + f×フォールト を f について解く。',
+    answer,
+    distractors: [
+      { value: noSub, why: '分子から主記憶時間を引いていない。増やせるのは「目標 − 主記憶」のぶんだけ。' },
+      { value: tenFold, why: '桁が1つ大きい。この率ではフォールトが多すぎて目標を超えてしまう。' },
+      { value: inverted, why: '分子と分母が逆。フォールト率は非常に小さい値になるはず。' },
+      { value: simple, why: '主記憶時間をフォールト時間で割っただけ。目標値を使っていない。' },
+      { value: asRatio, why: '目標の倍率をそのまま答えている。求めるのは率（非常に小さい値）。' },
+    ],
+    // 0.00025001 のような生値では大小の比較すらできないので、
+    // 「%」と「何回に1回か」を併記して意味で選べるようにする。
+    format: (v) => fmtSmallRate(v),
+    steps: [
+      step('目標の実効時間', `${memNs} × ${fmtNum(targetRatio, 1)}`, round(targetNs, 2), 'ナノ秒'),
+      step('式を立てる', `${fmtInt(targetNs)} = (1−f)×${memNs} + f×${fmtInt(faultNs)}`, null),
+      step('fについて解く', `(${fmtInt(targetNs)} − ${memNs}) / (${fmtInt(faultNs)} − ${memNs})`, answer),
+    ],
+    note:
+      `許容できるフォールト率は${fmtNum(answer * 100, 6)}%。` +
+      `${fmtInt(1 / answer)}回に1回しかフォールトしてはいけない計算になる。` +
+      `仮想記憶ではフォールトをいかに減らすかが性能を決める。`,
+  };
+}
+
+// ===== src/core/generators/evm.js ================================
+// EVM（アーンドバリューマネジメント）
+// 落とし穴：差異（SV/CV）は「EV −」から始まる。引く順序を逆にすると符号が反転する。
+// 指数（SPI/CPI）は「EV ÷」。分子は常にEV。
+
+
+register({
+  id: 'evm',
+  name: 'EVM（アーンドバリュー）',
+  category: 'マネジメント系',
+  tags: ['EVM', 'SPI', 'CPI', 'SV', 'CV', 'EAC'],
+
+  gen(rng) {
+    return rng.pick([genVariance, genIndex, genEac])(rng);
+  },
+});
+
+// PV/EV/AC を作る。単位は万円。
+// EVとPV、EVとACをそれぞれ別方向にずらして、指標が1をまたぐ問題も出るようにする。
+function baseValues(rng) {
+  // SVとCV（SPIとCPI）が同じ値になる組合せは、
+  // 「もう一方を答えるミス」「符号や分母分子を逆にするミス」が誤答として成立しないため避ける。
+  //
+  // 除外条件は PV==AC、2EV==PV+AC、EV²==PV·AC など複数あり、
+  // 数式で列挙すると漏れやすい。実際の差異・指数の値どうしを比べて
+  // 全て異なる組が出るまで引き直すほうが確実。
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const pv = rng.int(10, 60) * 10; // 100〜600万円
+    // EV は PV の 70〜125%（100%は避ける＝差異0だと誤答が潰れる）
+    const ev = round(pv * rng.pick([0.7, 0.8, 0.9, 1.1, 1.2, 1.25]), 0);
+    const ac = round(ev * rng.pick([0.75, 0.8, 0.9, 1.1, 1.2, 1.25]), 0);
+
+    const values = [
+      ev - pv, // SV
+      ev - ac, // CV
+      pv - ev, // SVの符号違い
+      ac - ev, // CVの符号違い
+      pv - ac, // EVを使わないミス
+    ];
+    const ratios = [
+      ev / pv, // SPI
+      ev / ac, // CPI
+      pv / ev, // SPIの逆数
+      ac / ev, // CPIの逆数
+      pv / ac, // EVを使わないミス
+    ];
+
+    // 判定は「画面に出る文字列」で行う。
+    // round(v, 3) で区別できても、表示が fmtNum(v, 3) で丸められて同じ文字列になれば、
+    // 利用者から見れば同じ選択肢であり buildChoices に捨てられる。
+    // （実際 1.0995 と 1.1 がどちらも "1.1" と表示されて誤答が足りなくなっていた）
+    const distinct = (arr, digits) =>
+      new Set(arr.map((v) => fmtNum(v, digits))).size === arr.length;
+
+    if (distinct(values, 1) && distinct(ratios, 3)) return { pv, ev, ac };
+  }
+  // 引き直しで見つからない確率は事実上ゼロだが、無限ループは避ける。
+  // この値が上の条件を満たすことは確認済み。
+  return { pv: 100, ev: 70, ac: 53 };
+}
+
+function situation(pv, ev, ac) {
+  return (
+    `あるプロジェクトの、ある時点での状況は次のとおりである。\n` +
+    `　PV（計画価値）：${fmtManYen(pv)}\n` +
+    `　EV（出来高）：${fmtManYen(ev)}\n` +
+    `　AC（実コスト）：${fmtManYen(ac)}`
+  );
+}
+
+// --- 差異（SV / CV） ----------------------------------------------------
+function genVariance(rng) {
+  const { pv, ev, ac } = baseValues(rng);
+  const isSchedule = rng.bool();
+
+  const answer = isSchedule ? round(ev - pv, 4) : round(ev - ac, 4);
+  const flipped = -answer; // 引く順序が逆
+  const other = isSchedule ? round(ev - ac, 4) : round(ev - pv, 4); // もう一方の差異
+  const otherFlipped = -other;
+  const wrongPair = round(pv - ac, 4); // EVを使わない
+
+  const name = isSchedule ? 'SV（スケジュール差異）' : 'CV（コスト差異）';
+  const formula = isSchedule ? 'SV = EV − PV' : 'CV = EV − AC';
+
+  return {
+    question: `${situation(pv, ev, ac)}\nこのプロジェクトの ${name} はいくらか。`,
+    hint: '差異はどちらも「EV −」から始まる。スケジュールならPV、コストならACを引く。',
+    answer,
+    distractors: [
+      { value: flipped, why: `引く順序が逆（${isSchedule ? 'PV − EV' : 'AC − EV'}）。符号が反転している。` },
+      { value: other, why: `もう一方の差異（${isSchedule ? 'CV = EV − AC' : 'SV = EV − PV'}）を求めている。` },
+      { value: wrongPair, why: 'PV − AC を計算している。差異の基準は常にEV（実際にできた分）。' },
+      { value: otherFlipped, why: 'もう一方の差異を、さらに逆順で計算している。' },
+    ],
+    format: (v) => (v >= 0 ? `+${fmtManYen(v)}` : `−${fmtManYen(-v)}`),
+    steps: [
+      step('公式', formula, null),
+      step('代入', `${fmtNum(ev, 0)} − ${fmtNum(isSchedule ? pv : ac, 0)}`, answer, '万円'),
+    ],
+    note:
+      answer >= 0
+        ? `プラスなので${isSchedule ? '予定より進んでいる' : '予算内に収まっている'}。差異は「プラスが良い」と覚える。`
+        : `マイナスなので${isSchedule ? '予定より遅れている' : '予算を超過している'}。差異は「プラスが良い」と覚える。`,
+  };
+}
+
+// --- 指数（SPI / CPI） --------------------------------------------------
+function genIndex(rng) {
+  const { pv, ev, ac } = baseValues(rng);
+  const isSchedule = rng.bool();
+
+  const answer = round(isSchedule ? ev / pv : ev / ac, 4);
+  const flipped = round(isSchedule ? pv / ev : ac / ev, 4); // 分母分子が逆
+  const other = round(isSchedule ? ev / ac : ev / pv, 4); // もう一方の指数
+  const wrongPair = round(pv / ac, 4);
+  // 表示は fmtNum(v,3) で末尾の0が落ちるため、生値が違っても "1.1" のように
+  // 同じ文字列になって潰れる組がある（1.0995 と 1.1 で実際に発生した）。
+  // 値が明確に離れる誤答を足して吸収する。
+  const acOverPv = round(ac / pv, 4); // EVを使わず、逆向きに割る
+  // 「1 − 指数」を答えてしまうミス（達成率と未達率の取り違え）
+  const oneMinus = round(1 - (isSchedule ? ev / pv : ev / ac), 4);
+
+  const name = isSchedule ? 'SPI（スケジュール効率指数）' : 'CPI（コスト効率指数）';
+  const formula = isSchedule ? 'SPI = EV ÷ PV' : 'CPI = EV ÷ AC';
+
+  return {
+    question: `${situation(pv, ev, ac)}\nこのプロジェクトの ${name} はいくらか。`,
+    hint: '指数はどちらも「EV ÷」。分子は常にEV。',
+    answer,
+    distractors: [
+      { value: flipped, why: `分子と分母が逆（${isSchedule ? 'PV ÷ EV' : 'AC ÷ EV'}）。分子は常にEV。` },
+      { value: other, why: `もう一方の指数（${isSchedule ? 'CPI = EV ÷ AC' : 'SPI = EV ÷ PV'}）を求めている。` },
+      { value: wrongPair, why: 'PV ÷ AC を計算している。指数の基準は常にEV。' },
+      { value: acOverPv, why: 'AC ÷ PV を計算している。EVが入っていないので出来高を評価できていない。' },
+      { value: oneMinus, why: '1から引いている。指数はそのまま1と比べる値（1以上なら良好）。' },
+    ],
+    format: (v) => fmtNum(v, 3),
+    steps: [
+      step('公式', formula, null),
+      step('代入', `${fmtNum(ev, 0)} / ${fmtNum(isSchedule ? pv : ac, 0)}`, answer),
+    ],
+    note:
+      answer >= 1
+        ? `1以上なので${isSchedule ? '予定より進んでいる' : '効率よくコストを使えている'}。指数は「1以上が良い」。`
+        : `1未満なので${isSchedule ? '予定より遅れている' : 'コスト効率が悪い'}。指数は「1以上が良い」。`,
+  };
+}
+
+// --- 完成時総コスト見積（EAC） ------------------------------------------
+function genEac(rng) {
+  const { pv, ev, ac } = baseValues(rng);
+  const bac = round(pv * rng.pick([1.5, 2, 2.5, 3]), 0); // 完成時総予算
+
+  const cpi = ev / ac;
+  const answer = round(bac / cpi, 0); // EAC = BAC / CPI
+
+  const asBac = bac; // 予算どおりと考える
+  const multiplied = round(bac * cpi, 0); // 掛けてしまう
+  const plusAc = round(bac + ac, 0);
+  const remaining = round(bac - ev, 0);
+
+  return {
+    question:
+      `${situation(pv, ev, ac)}\n` +
+      `完成時総予算（BAC）は ${fmtManYen(bac)} である。\n` +
+      `現在のコスト効率がこのまま続くと仮定したとき、完成時総コスト見積（EAC）はいくらか。`,
+    hint: 'EAC = BAC ÷ CPI。効率が悪い（CPI<1）ほど、見積は予算より膨らむ。',
+    answer,
+    distractors: [
+      { value: asBac, why: '予算どおりに終わると考えている。現在のコスト効率を反映する必要がある。' },
+      { value: multiplied, why: 'CPIを掛けている。効率が悪いほど総コストは増えるので割る。' },
+      { value: remaining, why: 'BAC − EV は「残作業の価値」。完成時の総コストではない。' },
+      { value: plusAc, why: 'BACにACを足している。ACは既にBACの一部を消化した実績。' },
+    ],
+    format: (v) => fmtManYen(v),
+    steps: [
+      step('CPI', `${fmtNum(ev, 0)} / ${fmtNum(ac, 0)}`, round(cpi, 4)),
+      step('公式', 'EAC = BAC / CPI', null),
+      step('代入', `${fmtNum(bac, 0)} / ${fmtNum(round(cpi, 4), 4)}`, answer, '万円'),
+    ],
+    note:
+      cpi < 1
+        ? `CPIが1未満なので、このままでは予算${fmtManYen(bac)}を約${fmtManYen(answer - bac)}超過する見込み。`
+        : `CPIが1以上なので、このままなら予算${fmtManYen(bac)}を下回る見込み。`,
+  };
+}
+
+// ===== src/core/generators/finance.js ============================
+// 損益分岐点・ROI・正味現在価値
+// 落とし穴：変動費率と限界利益率の取り違え（合計1になる関係）、
+// 損益分岐点「売上高」と「販売数量」の混同。
+
+
+register({
+  id: 'finance',
+  name: '損益分岐点・ROI・NPV',
+  category: 'ストラテジ系',
+  tags: ['損益分岐点', '限界利益率', '変動費', 'ROI', '正味現在価値'],
+
+  gen(rng) {
+    return rng.pick([genBep, genProfit, genRoi, genNpv])(rng);
+  },
+});
+
+// --- 損益分岐点売上高 ---------------------------------------------------
+function genBep(rng) {
+  const fixed = rng.int(10, 80) * 10; // 固定費 100〜800万円
+  // 変動費率は限界利益率と別の値になるよう0.5を避ける（0.5だと両者が同値）
+  const varRate = rng.pick([0.2, 0.25, 0.3, 0.4, 0.6, 0.7, 0.75]);
+  const marginRate = round(1 - varRate, 4);
+
+  const answer = round(fixed / marginRate, 4);
+
+  const byVarRate = round(fixed / varRate, 4); // 変動費率で割る
+  const times = round(fixed * marginRate, 4); // 掛けてしまう
+  const asFixed = fixed; // 固定費をそのまま答える
+  const plusFixed = round(fixed / marginRate + fixed, 4);
+
+  return {
+    question:
+      `ある製品の固定費が ${fmtManYen(fixed)}、変動費率が ${fmtPct(varRate, 0)} である。\n` +
+      `損益分岐点売上高はいくらか。`,
+    hint: '限界利益率＝1−変動費率。固定費をその率で割る。',
+    answer,
+    distractors: [
+      { value: byVarRate, why: '変動費率で割っている。割るのは限界利益率（1−変動費率）。' },
+      { value: times, why: '掛けている。固定費を回収するには売上が固定費より大きく必要なので割る。' },
+      { value: plusFixed, why: '固定費を二重に足している。損益分岐点売上高の式に既に含まれている。' },
+      { value: asFixed, why: '固定費をそのまま答えている。売上のうち変動費に消える分があるので、より多く売る必要がある。' },
+    ],
+    format: (v) => fmtManYen(v),
+    steps: [
+      step('限界利益率', `1 − ${fmtNum(varRate, 2)}`, marginRate),
+      step('公式', '損益分岐点売上高 = 固定費 / 限界利益率', null),
+      step('代入', `${fixed} / ${fmtNum(marginRate, 2)}`, answer, '万円'),
+    ],
+    note:
+      `売上${fmtManYen(answer)}のとき、変動費${fmtManYen(answer * varRate)}＋固定費${fmtManYen(fixed)}で利益がちょうど0になる。`,
+  };
+}
+
+// --- 目標利益を達成する売上高 -------------------------------------------
+function genProfit(rng) {
+  const fixed = rng.int(10, 60) * 10;
+  const varRate = rng.pick([0.2, 0.25, 0.3, 0.4, 0.6, 0.7]);
+  const marginRate = round(1 - varRate, 4);
+  const target = rng.int(5, 30) * 10; // 目標利益 50〜300万円
+
+  const answer = round((fixed + target) / marginRate, 4);
+
+  const noTarget = round(fixed / marginRate, 4); // 目標利益を足し忘れる
+  // varRate と marginRate の関係次第で noTarget と同値になる組がある
+  // （例：固定費460・変動費率60% だとどちらも1150）。誤答を厚めに用意して吸収する。
+  const byVarRate = round((fixed + target) / varRate, 4);
+  const plusTarget = round(fixed / marginRate + target, 4); // 利益を後から足す
+  const asSum = fixed + target; // 割り戻しをせず、そのまま足しただけ
+  const timesMargin = round((fixed + target) * marginRate, 4); // 割らずに掛ける
+
+  return {
+    question:
+      `ある製品の固定費が ${fmtManYen(fixed)}、変動費率が ${fmtPct(varRate, 0)} である。\n` +
+      `${fmtManYen(target)}の利益を確保するには、売上高はいくら必要か。`,
+    hint: '固定費と目標利益を合わせた額を、限界利益率で割る。',
+    answer,
+    distractors: [
+      { value: noTarget, why: '目標利益を加えていない。これは損益分岐点売上高（利益0の場合）。' },
+      { value: plusTarget, why: '目標利益を後から足している。利益分も限界利益率で割り戻す必要がある。' },
+      { value: byVarRate, why: '変動費率で割っている。割るのは限界利益率（1−変動費率）。' },
+      { value: asSum, why: '固定費と目標利益を足しただけ。売上の一部は変動費に消えるので割り戻しが要る。' },
+      { value: timesMargin, why: '限界利益率を掛けている。必要な売上を求めるので割るのが正しい。' },
+    ],
+    format: (v) => fmtManYen(v),
+    steps: [
+      step('限界利益率', `1 − ${fmtNum(varRate, 2)}`, marginRate),
+      step('回収すべき額', `${fixed} + ${target}`, fixed + target, '万円'),
+      step('必要な売上高', `${fixed + target} / ${fmtNum(marginRate, 2)}`, answer, '万円'),
+    ],
+    note:
+      '目標利益は「固定費と同じように回収すべき額」として扱う。' +
+      '売上の一部は変動費に消えるので、割り戻しが必要。',
+  };
+}
+
+// --- ROI ----------------------------------------------------------------
+function genRoi(rng) {
+  const invest = rng.int(10, 50) * 100; // 投資額 1000〜5000万円
+  const gain = round(invest * rng.pick([0.1, 0.15, 0.2, 0.25, 0.3, 0.4]), 0); // 利益
+
+  const answer = round(gain / invest, 4);
+
+  const withInvest = round((gain + invest) / invest, 4); // 回収率と混同（＝ROI+1）
+  const doubled = round((gain / invest) * 2, 4); // 2倍に見積もる
+  // 注：gain − invest（差額）は率ではないため、%として表示すると
+  //     「−276000%」のような明らかにおかしい選択肢になる。率どうしで比較できる誤答だけを使う。
+  const halfRate = round(gain / invest / 2, 4); // 期間で割ってしまう
+  const timesTen = round((gain / invest) * 10, 4); // 桁を1つ間違える
+
+  return {
+    question:
+      `${fmtManYen(invest)}を投資し、${fmtManYen(gain)}の利益が得られた。\n` +
+      `このときのROI（投資利益率）はいくらか。`,
+    hint: 'ROI＝利益÷投資額。投資した額に対してどれだけ儲かったか。',
+    answer,
+    distractors: [
+      { value: withInvest, why: '利益に投資額を足している（回収率）。ROIは利益だけを投資額で割る。' },
+      { value: halfRate, why: '何かで割って半分にしている。ROIは利益を投資額で割るだけ。' },
+      { value: timesTen, why: '桁を1つ間違えている。割り算の結果をそのまま率として読む。' },
+      { value: doubled, why: '2倍に見積もっている。利益をそのまま投資額で割るだけでよい。' },
+    ],
+    format: (v) => fmtPct(v, 1),
+    steps: [
+      step('公式', 'ROI = 利益 / 投資額', null),
+      step('代入', `${gain} / ${invest}`, answer),
+    ],
+    note: `投資額の${fmtPct(answer, 1)}が利益として返ってきた計算。ROIが高いほど投資効率が良い。`,
+  };
+}
+
+// --- 正味現在価値（NPV） ------------------------------------------------
+function genNpv(rng) {
+  const rate = rng.pick([0.05, 0.1]); // 割引率
+  const years = 2; // 2年分（手計算できる範囲に留める）
+  const cash = rng.int(10, 40) * 10; // 各年のキャッシュフロー
+  const invest = rng.int(10, 50) * 10;
+
+  // 現在価値 = Σ CF/(1+r)^n
+  const pv1 = cash / (1 + rate);
+  const pv2 = cash / Math.pow(1 + rate, 2);
+  const pvTotal = pv1 + pv2;
+  const answer = round(pvTotal - invest, 2);
+
+  const noDiscount = round(cash * years - invest, 2); // 割り引かない
+  const noInvest = round(pvTotal, 2); // 投資額を引き忘れる
+  const multiplied = round(cash * (1 + rate) + cash * Math.pow(1 + rate, 2) - invest, 2); // 掛けてしまう
+
+  return {
+    question:
+      `初期投資 ${fmtManYen(invest)}のプロジェクトがあり、` +
+      `1年後と2年後にそれぞれ ${fmtManYen(cash)}のキャッシュフローが見込まれる。\n` +
+      `割引率を ${fmtPct(rate, 0)} とするとき、正味現在価値（NPV）はおよそいくらか。`,
+    hint: '将来のお金を現在価値に割り引いてから合計し、最後に初期投資を引く。',
+    answer,
+    distractors: [
+      { value: noDiscount, why: '割引をしていない。将来のお金は現在価値に直す必要がある。' },
+      { value: noInvest, why: '初期投資を引いていない。「正味」なので投資額を差し引く。' },
+      { value: multiplied, why: '(1+r)を掛けている。将来価値→現在価値は割る方向。' },
+    ],
+    format: (v) => fmtManYen(v),
+    steps: [
+      step('1年後の現在価値', `${cash} / 1.${String(rate * 100).padStart(2, '0')}`, round(pv1, 2), '万円'),
+      step('2年後の現在価値', `${cash} / 1.${String(rate * 100).padStart(2, '0')}²`, round(pv2, 2), '万円'),
+      step('現在価値の合計', `${fmtNum(pv1, 2)} + ${fmtNum(pv2, 2)}`, round(pvTotal, 2), '万円'),
+      step('NPV', `${fmtNum(pvTotal, 2)} − ${invest}`, answer, '万円'),
+    ],
+    note:
+      answer >= 0
+        ? 'NPVがプラスなので、この投資は割引率を上回るリターンがあり採算が合う。'
+        : 'NPVがマイナスなので、この割引率のもとでは採算が合わない。',
+  };
+}
+
+// ===== src/core/generators/index.js ==============================
+// 全ジェネレータの読み込み口。
+// import した順に registry へ並ぶので、ここの順序がUIの分野一覧の順序になる。
+
+// ===== src/core/store.js =========================================
+// 保存層の抽象化。
+// localStorage を直接叩かないのは、将来アプリ化・サーバ同期に切り替えるとき
+// ここだけ差し替えれば済むようにするため。UI側は必ずこの API を経由する。
+
+const KEY = 'ap-kit:v1';
+
+// localStorage が使えない環境（file:// のSafari、プライベートモード等）でも
+// 落ちずに動くよう、メモリへフォールバックする。
+let memory = null;
+
+function backend() {
+  if (memory) return null;
+  try {
+    const t = '__ap_kit_probe__';
+    localStorage.setItem(t, '1');
+    localStorage.removeItem(t);
+    return localStorage;
+  } catch {
+    memory = new Map();
+    return null;
+  }
+}
+
+function readAll() {
+  const b = backend();
+  const raw = b ? b.getItem(KEY) : memory.get(KEY);
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function writeAll(obj) {
+  const raw = JSON.stringify(obj);
+  const b = backend();
+  if (b) {
+    try {
+      b.setItem(KEY, raw);
+      return true;
+    } catch {
+      // 容量超過など。データを失うよりメモリで継続する。
+      memory = new Map();
+    }
+  }
+  memory.set(KEY, raw);
+  return false;
+}
+
+const store = {
+  get(key, fallback = null) {
+    const all = readAll();
+    return key in all ? all[key] : fallback;
+  },
+  set(key, value) {
+    const all = readAll();
+    all[key] = value;
+    return writeAll(all);
+  },
+  update(key, fn, fallback = null) {
+    const cur = store.get(key, fallback);
+    const nextValue = fn(cur);
+    store.set(key, nextValue);
+    return nextValue;
+  },
+  clear() {
+    writeAll({});
+  },
+};
+
+// --- 成績の記録 ---------------------------------------------------------
+// 形: { [generatorId]: { correct, total, recent: [{ ts, ok, seed }] } }
+
+const STATS = 'stats';
+const RECENT_MAX = 30;
+
+function recordAnswer({ generatorId, ok, seed, ts = Date.now() }) {
+  return store.update(
+    STATS,
+    (stats) => {
+      const s = stats || {};
+      const e = s[generatorId] || { correct: 0, total: 0, recent: [] };
+      e.total += 1;
+      if (ok) e.correct += 1;
+      e.recent.unshift({ ts, ok, seed });
+      e.recent = e.recent.slice(0, RECENT_MAX);
+      s[generatorId] = e;
+      return s;
+    },
+    {}
+  );
+}
+
+function getStats() {
+  return store.get(STATS, {}) || {};
+}
+
+function resetStats() {
+  store.set(STATS, {});
+}
+
+// ===== src/sim/queue.js ==========================================
+// 待ち行列シミュレータ（M/M/1）
+//
+// 狙い：ρが1に近づくと待ち時間が「急に」爆発することを体感させる。
+// 公式 Tw=ρ/(1−ρ)·Ts を暗記しても、この非線形さは実感しにくい。
+// 実測値と理論値を並べて出すことで、公式が現実の挙動と一致することも同時に見せる。
+
+const queueSim = {
+  id: 'queue',
+  name: '待ち行列',
+  drillId: 'queue', // 「この分野を解く」の飛び先
+
+  html: `
+    <p class="muted">
+      窓口が1つの行列（M/M/1）。客はランダムに到着し、処理時間もばらつく。
+      利用率 ρ を上げていくと、待ち時間がどう変わるかを見る。
+    </p>
+    <div class="sim-stage">
+      <svg id="qsim-canvas" viewBox="0 0 600 130" style="width:100%;min-width:360px;height:auto">
+        <g id="qsim-queue"></g>
+        <rect x="470" y="40" width="70" height="50" rx="8" fill="none" stroke="currentColor" stroke-width="2"/>
+        <text x="505" y="70" text-anchor="middle" font-size="13" fill="currentColor">窓口</text>
+        <circle id="qsim-serving" cx="505" cy="65" r="11" fill="#2f6fd0" opacity="0"/>
+        <text x="20" y="110" font-size="12" fill="currentColor" opacity="0.6">← 待っている客</text>
+      </svg>
+    </div>
+    <div class="ctrl">
+      <label>
+        <span>到着の多さ ρ</span>
+        <input type="range" id="qsim-rho" min="10" max="95" step="5" value="50">
+        <span class="v" id="qsim-rho-v">0.50</span>
+      </label>
+      <label>
+        <span>再生速度</span>
+        <input type="range" id="qsim-speed" min="1" max="80" step="1" value="30">
+        <span class="v" id="qsim-speed-v">×30</span>
+      </label>
+    </div>
+    <div class="readout">
+      <div class="stat"><div class="k">行列の長さ</div><div class="v" id="qsim-len">0</div></div>
+      <div class="stat"><div class="k">平均待ち時間（実測）</div><div class="v" id="qsim-measured">–</div></div>
+      <div class="stat accent"><div class="k">平均待ち時間（理論値）</div><div class="v" id="qsim-theory">–</div></div>
+      <div class="stat"><div class="k">処理した客</div><div class="v" id="qsim-done">0</div></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="qsim-reset">統計をリセット</button>
+      <span class="spacer"></span>
+      <button class="btn primary" data-drill="queue">この分野の問題を解く</button>
+    </div>
+    <div class="note" id="qsim-note"></div>
+  `,
+
+  mount(root) {
+    const $ = (s) => root.querySelector(s);
+
+    const TS = 1.0; // 平均サービス時間（秒・シミュレーション内時間）
+    let rho = 0.5;
+    // 既定は×30。等倍だと実測平均が出るまで（20人処理）に数十秒かかって
+    // 「動いていない」ように見えるため、最初から実測値が出る速さにしておく。
+    let speed = 30;
+
+    let queue = []; // 待っている客の到着時刻
+    let serving = null; // { finishAt }
+    let now = 0;
+    let nextArrival = 0;
+    let doneCount = 0;
+    let waitSum = 0;
+    let raf = null; // setInterval のハンドル
+
+    // 指数分布に従う乱数（M/M/1の到着間隔・サービス時間はこれ）
+    const expRand = (mean) => -Math.log(1 - Math.random()) * mean;
+
+    function reset(keepParams) {
+      queue = [];
+      serving = null;
+      now = 0;
+      nextArrival = expRand(TS / rho);
+      doneCount = 0;
+      waitSum = 0;
+      if (!keepParams) render();
+    }
+
+    function stepSim(dt) {
+      // dt 秒ぶん進める。イベントは順に処理する。
+      let remaining = dt;
+      while (remaining > 0) {
+        const tArrival = nextArrival - now;
+        const tFinish = serving ? serving.finishAt - now : Infinity;
+        const tNext = Math.min(tArrival, tFinish, remaining);
+
+        now += tNext;
+        remaining -= tNext;
+
+        if (serving && now >= serving.finishAt - 1e-9) {
+          waitSum += serving.waited;
+          doneCount++;
+          serving = null;
+        }
+        if (now >= nextArrival - 1e-9) {
+          queue.push(now);
+          nextArrival = now + expRand(TS / rho);
+        }
+        // 窓口が空いていれば次の客を取る
+        if (!serving && queue.length) {
+          const arrivedAt = queue.shift();
+          serving = { finishAt: now + expRand(TS), waited: now - arrivedAt };
+        }
+        if (tNext === 0 && remaining > 0) {
+          // 同時刻イベントの処理が終わったら次へ（無限ループ防止）
+          if (tArrival > 0 && tFinish > 0) break;
+        }
+      }
+    }
+
+    function theory() {
+      return (rho / (1 - rho)) * TS;
+    }
+
+    function render() {
+      // 行列の描画（最大18人まで。それ以上は「+N」で示す）
+      const g = $('#qsim-queue');
+      const shown = Math.min(queue.length, 18);
+      let s = '';
+      for (let i = 0; i < shown; i++) {
+        const x = 440 - i * 24;
+        s += `<circle cx="${x}" cy="65" r="9" fill="currentColor" opacity="0.55"/>`;
+      }
+      if (queue.length > shown) {
+        s += `<text x="${440 - shown * 24 - 14}" y="70" text-anchor="end" font-size="13" fill="currentColor">+${
+          queue.length - shown
+        }</text>`;
+      }
+      g.innerHTML = s;
+      $('#qsim-serving').setAttribute('opacity', serving ? '1' : '0');
+
+      $('#qsim-len').textContent = String(queue.length);
+      $('#qsim-done').textContent = String(doneCount);
+      $('#qsim-theory').textContent = theory().toFixed(2) + '秒';
+      // 実測は数がたまるまで出さない（少数だと理論値から大きくずれて誤解を生む）
+      $('#qsim-measured').textContent =
+        doneCount >= 20 ? (waitSum / doneCount).toFixed(2) + '秒' : '計測中…';
+
+      const t = theory();
+      let msg =
+        `ρ=${rho.toFixed(2)} では、待ち時間は処理時間の ${(rho / (1 - rho)).toFixed(2)} 倍（${t.toFixed(2)}秒）。`;
+      if (rho >= 0.85) {
+        // 実測が理論値へ収束するのに時間がかかる領域。
+        // 「値が合わない＝バグ」と誤解されないよう、性質として説明しておく。
+        msg +=
+          ' ρが0.9に近づくと待ち時間が急激に伸びる。これが「混雑すると急に遅くなる」正体。' +
+          'この領域は待ち時間のばらつきも大きく、実測値が理論値に近づくまでかなりの客数を要する。';
+      } else {
+        msg += ' ρを0.9以上に上げてみると、待ち時間の伸び方が急になるのが分かる。';
+      }
+      $('#qsim-note').textContent = msg;
+    }
+
+    // requestAnimationFrame ではなく setInterval で回す。
+    // rAF はタブが裏に回ると停止し、戻ってきたときに一気に時間が飛ぶ。
+    // ここでは「一定間隔で少しずつ進める」ほうが挙動が素直で、裏に回しても破綻しない。
+    const TICK_MS = 50;
+
+    function loop() {
+      const dtReal = TICK_MS / 1000;
+      stepSim(dtReal * speed);
+      render();
+    }
+
+    $('#qsim-rho').addEventListener('input', (e) => {
+      rho = Number(e.target.value) / 100;
+      $('#qsim-rho-v').textContent = rho.toFixed(2);
+      // ρを変えたら実測値は意味を失うのでリセットする
+      reset(true);
+      render();
+    });
+    $('#qsim-speed').addEventListener('input', (e) => {
+      speed = Number(e.target.value);
+      $('#qsim-speed-v').textContent = '×' + speed;
+    });
+    $('#qsim-reset').addEventListener('click', () => reset());
+
+    reset();
+    raf = setInterval(loop, TICK_MS);
+
+    // シミュレータを切り替えたら必ず止める（放置すると裏で回り続ける）
+    return () => {
+      if (raf) clearInterval(raf);
+      raf = null;
+    };
+  },
+};
+
+// ===== src/sim/subnet.js =========================================
+// サブネット・ビット可視化
+//
+// 狙い：プレフィクス長を動かすと32ビットのどこで線が引かれるかを目で見る。
+// 「/26 は第4オクテットの上位2ビット」という感覚が付けば、
+// ネットワークアドレスの計算は暗算でできるようになる。
+
+const subnetSim = {
+  id: 'subnet',
+  name: 'サブネット',
+  drillId: 'subnet',
+
+  html: `
+    <p class="muted">
+      プレフィクス長を動かすと、32ビットのどこでネットワーク部とホスト部が分かれるかが見える。
+      オクテットの途中で切れる感覚をつかむのが目的。
+    </p>
+    <div class="ctrl">
+      <label>
+        <span>IPアドレス</span>
+        <input type="text" id="snsim-ip" value="192.168.10.200"
+               inputmode="decimal" spellcheck="false"
+               style="font:inherit;padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);width:100%">
+        <span class="v" id="snsim-ipmsg"></span>
+      </label>
+      <label>
+        <span>プレフィクス長</span>
+        <input type="range" id="snsim-prefix" min="8" max="30" step="1" value="26">
+        <span class="v" id="snsim-prefix-v">/26</span>
+      </label>
+    </div>
+    <div class="sim-stage">
+      <div id="snsim-bits" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:2.1;white-space:nowrap"></div>
+    </div>
+    <div class="readout">
+      <div class="stat"><div class="k">サブネットマスク</div><div class="v" id="snsim-mask" style="font-size:15px">–</div></div>
+      <div class="stat"><div class="k">ネットワークアドレス</div><div class="v" id="snsim-net" style="font-size:15px">–</div></div>
+      <div class="stat"><div class="k">ブロードキャスト</div><div class="v" id="snsim-bc" style="font-size:15px">–</div></div>
+      <div class="stat accent"><div class="k">収容ホスト数</div><div class="v" id="snsim-hosts">–</div></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <span class="spacer"></span>
+      <button class="btn primary" data-drill="subnet">この分野の問題を解く</button>
+    </div>
+    <div class="note" id="snsim-note"></div>
+  `,
+
+  mount(root) {
+    const $ = (s) => root.querySelector(s);
+
+    const parseIp = (s) => {
+      const m = String(s).trim().split('.');
+      if (m.length !== 4) return null;
+      const o = m.map((x) => Number(x));
+      if (o.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
+      return ((o[0] << 24) >>> 0) + (o[1] << 16) + (o[2] << 8) + o[3];
+    };
+    const toIp = (n) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.');
+    const maskOf = (p) => (p === 0 ? 0 : (0xffffffff << (32 - p)) >>> 0);
+
+    function render() {
+      const prefix = Number($('#snsim-prefix').value);
+      $('#snsim-prefix-v').textContent = '/' + prefix;
+
+      const ip = parseIp($('#snsim-ip').value);
+      if (ip === null) {
+        $('#snsim-ipmsg').textContent = '形式が不正';
+        return;
+      }
+      $('#snsim-ipmsg').textContent = '';
+
+      const mask = maskOf(prefix);
+      const net = (ip & mask) >>> 0;
+      const size = Math.pow(2, 32 - prefix);
+      const bc = (net + size - 1) >>> 0;
+      const hosts = Math.max(0, size - 2);
+
+      // ビット列を色分けして描く。オクテット区切りに空白を入れる。
+      const bits = ip.toString(2).padStart(32, '0');
+      let html = '';
+      for (let i = 0; i < 32; i++) {
+        if (i > 0 && i % 8 === 0) html += '<span style="opacity:.35"> . </span>';
+        const isNet = i < prefix;
+        const color = isNet ? 'var(--accent)' : 'var(--warn)';
+        const weight = isNet ? '700' : '400';
+        // プレフィクス境界に縦線を入れる
+        const border =
+          i === prefix ? 'border-left:2px solid var(--ng);margin-left:-1px;padding-left:2px;' : '';
+        html += `<span style="color:${color};font-weight:${weight};${border}">${bits[i]}</span>`;
+      }
+      html +=
+        `<div style="margin-top:6px;font-size:12px;font-family:inherit">` +
+        `<span style="color:var(--accent);font-weight:700">■</span> ネットワーク部 ${prefix}ビット　` +
+        `<span style="color:var(--warn);font-weight:700">■</span> ホスト部 ${32 - prefix}ビット</div>`;
+      $('#snsim-bits').innerHTML = html;
+
+      $('#snsim-mask').textContent = toIp(mask);
+      $('#snsim-net').textContent = toIp(net);
+      $('#snsim-bc').textContent = toIp(bc);
+      $('#snsim-hosts').textContent = hosts.toLocaleString('ja-JP') + '台';
+
+      $('#snsim-note').textContent =
+        `このサブネットの範囲は ${toIp(net)} 〜 ${toIp(bc)}（全${size.toLocaleString('ja-JP')}個）。` +
+        `先頭のネットワークアドレスと末尾のブロードキャストアドレスは使えないので、割り当てられるのは ${hosts.toLocaleString(
+          'ja-JP'
+        )} 台。`;
+    }
+
+    $('#snsim-prefix').addEventListener('input', render);
+    $('#snsim-ip').addEventListener('input', render);
+    render();
+
+    return () => {};
+  },
+};
+
+// ===== src/sim/page.js ===========================================
+// ページ置換アルゴリズムの比較（FIFO / LRU / OPT）
+//
+// 狙い：同じ参照列に対して3方式を横並びで動かし、フォールト数の差を目で見る。
+// OPT（最適・未来を知っている前提）が理論上の下限であること、
+// LRUがそれにどれだけ近いかが分かると、キャッシュ設計の話が腑に落ちる。
+
+const pageSim = {
+  id: 'page',
+  name: 'ページ置換',
+  drillId: null, // 対応するドリル分野は今回のスコープ外（拡張候補）
+
+  html: `
+    <p class="muted">
+      同じ参照列を FIFO・LRU・OPT の3方式に流し、ページフォールトの起き方を比べる。
+      OPT は「未来の参照を知っている」理想の方式で、これ以上は減らせないという下限を示す。
+    </p>
+    <div class="ctrl">
+      <label>
+        <span>フレーム数</span>
+        <input type="range" id="pgsim-frames" min="2" max="5" step="1" value="3">
+        <span class="v" id="pgsim-frames-v">3</span>
+      </label>
+      <label>
+        <span>参照列</span>
+        <input type="text" id="pgsim-seq" value="7 0 1 2 0 3 0 4 2 3 0 3 2 1 2 0 1 7 0 1"
+               inputmode="numeric" spellcheck="false"
+               style="font:inherit;padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);width:100%">
+        <span class="v"><button class="btn" id="pgsim-rand" style="padding:4px 10px;font-size:13px">ランダム</button></span>
+      </label>
+    </div>
+    <div class="row" style="margin-top:4px">
+      <button class="btn" id="pgsim-prev">◀ 戻る</button>
+      <button class="btn primary" id="pgsim-play">▶ 再生</button>
+      <button class="btn" id="pgsim-next">進む ▶</button>
+      <button class="btn" id="pgsim-reset">最初から</button>
+      <span class="muted" id="pgsim-pos"></span>
+    </div>
+    <div class="sim-stage" id="pgsim-stage"></div>
+    <div class="readout" id="pgsim-readout"></div>
+    <div class="note" id="pgsim-note"></div>
+  `,
+
+  mount(root) {
+    const $ = (s) => root.querySelector(s);
+
+    let seq = [];
+    let frames = 3;
+    let step = 0; // 何個目まで処理したか
+    let timer = null;
+
+    // --- 各アルゴリズムを step 個目まで実行した状態を返す（純関数） -----
+    //
+    // 毎回最初から計算し直している。参照列はせいぜい数十個なので速度は問題なく、
+    // 「戻る」を実装するときに履歴を持たなくて済むぶん確実。
+    function simulate(algo, upto) {
+      const mem = []; // フレームの中身
+      const meta = []; // FIFO: 入った順、LRU: 最終参照時刻
+      let faults = 0;
+      let lastEvicted = null;
+      let lastFault = false;
+
+      for (let t = 0; t < upto; t++) {
+        const page = seq[t];
+        const hit = mem.indexOf(page) >= 0;
+        lastFault = !hit;
+        lastEvicted = null;
+
+        if (hit) {
+          if (algo === 'LRU') meta[mem.indexOf(page)] = t;
+          continue;
+        }
+
+        faults++;
+
+        if (mem.length < frames) {
+          mem.push(page);
+          meta.push(t);
+          continue;
+        }
+
+        let victim = 0;
+        if (algo === 'FIFO' || algo === 'LRU') {
+          // FIFO: 入った時刻が最小 / LRU: 最終参照が最小
+          for (let i = 1; i < mem.length; i++) if (meta[i] < meta[victim]) victim = i;
+        } else {
+          // OPT: 次に使われるのが最も先（または二度と使われない）ページを追い出す
+          let farthest = -1;
+          for (let i = 0; i < mem.length; i++) {
+            let nextUse = Infinity;
+            for (let k = t + 1; k < seq.length; k++) {
+              if (seq[k] === mem[i]) {
+                nextUse = k;
+                break;
+              }
+            }
+            if (nextUse > farthest) {
+              farthest = nextUse;
+              victim = i;
+            }
+          }
+        }
+
+        lastEvicted = mem[victim];
+        mem[victim] = page;
+        meta[victim] = t;
+      }
+
+      return { mem: mem.slice(), faults, lastEvicted, lastFault };
+    }
+
+    const ALGOS = [
+      { id: 'FIFO', label: 'FIFO（入った順に追い出す）' },
+      { id: 'LRU', label: 'LRU（最後に使ったのが古い順）' },
+      { id: 'OPT', label: 'OPT（最適・未来を知っている）' },
+    ];
+
+    function render() {
+      $('#pgsim-frames-v').textContent = String(frames);
+      $('#pgsim-pos').textContent = `${step} / ${seq.length} 件目まで`;
+
+      // 参照列の表示（現在位置を強調）
+      let seqHtml =
+        '<div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;margin-bottom:12px;white-space:nowrap">';
+      seq.forEach((p, i) => {
+        const isCur = i === step - 1;
+        const done = i < step;
+        seqHtml +=
+          `<span style="display:inline-block;width:26px;text-align:center;border-radius:4px;` +
+          (isCur
+            ? 'background:var(--accent);color:#fff;font-weight:700;'
+            : done
+            ? 'opacity:.45;'
+            : 'opacity:.85;') +
+          `">${p}</span>`;
+      });
+      seqHtml += '</div>';
+
+      let body = seqHtml;
+      const results = {};
+
+      for (const a of ALGOS) {
+        const r = simulate(a.id, step);
+        results[a.id] = r;
+
+        const cells = [];
+        for (let i = 0; i < frames; i++) {
+          const v = r.mem[i];
+          const filled = v !== undefined;
+          cells.push(
+            `<div style="width:44px;height:38px;border-radius:6px;display:grid;place-items:center;` +
+              `font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700;` +
+              `border:1px solid var(--line);background:${filled ? 'var(--panel)' : 'transparent'};` +
+              `color:${filled ? 'var(--text)' : 'var(--muted)'}">${filled ? v : '·'}</div>`
+          );
+        }
+
+        body +=
+          `<div style="margin-bottom:14px">` +
+          `<div style="font-size:13px;color:var(--muted);margin-bottom:5px">${a.label}` +
+          (step > 0 && r.lastFault
+            ? ` <span style="color:var(--ng);font-weight:700">フォールト</span>` +
+              (r.lastEvicted !== null && r.lastEvicted !== undefined
+                ? `<span style="color:var(--muted)">（${r.lastEvicted} を追い出し）</span>`
+                : '')
+            : step > 0
+            ? ` <span style="color:var(--ok);font-weight:700">ヒット</span>`
+            : '') +
+          `</div>` +
+          `<div style="display:flex;gap:6px">${cells.join('')}</div>` +
+          `</div>`;
+      }
+
+      $('#pgsim-stage').innerHTML = body;
+
+      $('#pgsim-readout').innerHTML = ALGOS.map((a) => {
+        const f = results[a.id].faults;
+        const isBest = f === Math.min(...ALGOS.map((x) => results[x.id].faults));
+        return (
+          `<div class="stat${isBest ? ' accent' : ''}">` +
+          `<div class="k">${a.id} のフォールト数</div><div class="v">${f}</div></div>`
+        );
+      }).join('');
+
+      const fifo = results.FIFO.faults;
+      const lru = results.LRU.faults;
+      const opt = results.OPT.faults;
+      $('#pgsim-note').textContent =
+        step < seq.length
+          ? '「進む」で1件ずつ、「再生」で自動的に進む。フレームが埋まったあとの追い出し方の違いに注目。'
+          : `最後まで実行：FIFO ${fifo}回、LRU ${lru}回、OPT ${opt}回。` +
+            `OPTは未来を知っている前提なので実装できないが、「これ以上は減らせない」下限を示す。` +
+            (lru <= fifo
+              ? ' LRUは直近の使用履歴を使う分、FIFOより賢く振る舞うことが多い。'
+              : ' この参照列ではFIFOのほうが良い結果になった。LRUが常に勝つとは限らない。');
+    }
+
+    function setSeq(text) {
+      const parsed = String(text)
+        .split(/[^0-9]+/)
+        .filter((s) => s !== '')
+        .map(Number)
+        .slice(0, 30);
+      seq = parsed.length ? parsed : [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2, 1, 2, 0, 1, 7, 0, 1];
+      step = 0;
+      stop();
+      render();
+    }
+
+    function stop() {
+      if (timer) clearInterval(timer);
+      timer = null;
+      $('#pgsim-play').textContent = '▶ 再生';
+    }
+
+    $('#pgsim-frames').addEventListener('input', (e) => {
+      frames = Number(e.target.value);
+      step = 0;
+      stop();
+      render();
+    });
+    $('#pgsim-seq').addEventListener('input', (e) => setSeq(e.target.value));
+    $('#pgsim-rand').addEventListener('click', () => {
+      const n = 20;
+      const out = [];
+      for (let i = 0; i < n; i++) out.push(Math.floor(Math.random() * 6));
+      $('#pgsim-seq').value = out.join(' ');
+      setSeq(out.join(' '));
+    });
+    $('#pgsim-next').addEventListener('click', () => {
+      if (step < seq.length) step++;
+      stop();
+      render();
+    });
+    $('#pgsim-prev').addEventListener('click', () => {
+      if (step > 0) step--;
+      stop();
+      render();
+    });
+    $('#pgsim-reset').addEventListener('click', () => {
+      step = 0;
+      stop();
+      render();
+    });
+    $('#pgsim-play').addEventListener('click', () => {
+      if (timer) {
+        stop();
+        return;
+      }
+      if (step >= seq.length) step = 0;
+      $('#pgsim-play').textContent = '❚❚ 停止';
+      timer = setInterval(() => {
+        if (step >= seq.length) {
+          stop();
+          render();
+          return;
+        }
+        step++;
+        render();
+      }, 700);
+    });
+
+    setSeq($('#pgsim-seq').value);
+
+    return () => stop();
+  },
+};
+
+// ===== src/sim/index.js ==========================================
+// シミュレータの登録と切り替え。
+// 表示中のものだけ mount し、切り替え時に unmount する
+// （待ち行列は requestAnimationFrame を回し続けるため、放置すると電池を食う）。
+
+
+
+const SIMS = [queueSim, subnetSim, pageSim];
+
+function mountSimulators() {
+  const nav = document.querySelector('#sim-nav');
+  const host = document.querySelector('#sim-host');
+  if (!nav || !host) return;
+
+  let unmount = null;
+  let currentId = null;
+
+  function show(id) {
+    if (currentId === id) return;
+    if (unmount) {
+      unmount();
+      unmount = null;
+    }
+    const sim = SIMS.find((s) => s.id === id) || SIMS[0];
+    currentId = sim.id;
+
+    Array.from(nav.children).forEach((b) =>
+      b.setAttribute('aria-pressed', String(b.dataset.sim === sim.id))
+    );
+
+    host.innerHTML = sim.html;
+
+    // 「この分野の問題を解く」ボタンはドリルタブへの遷移イベントを投げる
+    host.querySelectorAll('[data-drill]').forEach((b) => {
+      b.addEventListener('click', () => {
+        window.dispatchEvent(
+          new CustomEvent('ap:drill', { detail: { genId: b.dataset.drill } })
+        );
+      });
+    });
+
+    unmount = sim.mount(host) || null;
+  }
+
+  nav.innerHTML = '';
+  for (const s of SIMS) {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.dataset.sim = s.id;
+    b.textContent = s.name;
+    b.addEventListener('click', () => show(s.id));
+    nav.appendChild(b);
+  }
+
+  show(SIMS[0].id);
+}
+
+// ===== src/learn/lessons.js ======================================
+// 「はじめから」モードのレッスン定義。
+//
+// ドリル（core/generators）とは目的がまったく違う。
+// ドリルは「解ける人が反復する」ための無限生成器。こちらは「まだ解けない人が
+// ゼロから読んで分かる」ための読み物で、数値は固定（＝説明文と必ず整合する）。
+//
+// 1レッスン ＝ read（読む）→ walk（一緒に解く）→ try（自分で解く）の3段。
+//   read … 用語と考え方。問題は出さない
+//   walk … 例題を穴埋めで追う。間違えても減点しない・正解を先に見てよい
+//   try  … 初めて自力。ヒント常時表示、間違えたら答えを出さずに再挑戦させる
+//
+// try の数値は「暗算できる」ことを最優先に選んである。
+// 0.9192 のような数が出た時点で初学者は計算そのもので詰まるため。
+
+const LESSONS = [
+  // =====================================================================
+  {
+    id: 'l-uptime',
+    title: 'システムはどれくらい動いているか',
+    subtitle: '稼働率',
+    // ドリルの分野ID。修了後に「本番の問題を解く」で飛ばす先
+    drillId: 'reliability',
+    minutes: 6,
+
+    read: [
+      {
+        h: 'まず、こういう話です',
+        b:
+          'コンビニのATMを思い浮かべてください。\n\n' +
+          'ほとんどの時間は使えますが、ときどき「調整中」の札が出ています。' +
+          '1年のうち、どれくらいの割合で使える状態だったか——これを数字にしたものが **稼働率（かどうりつ）** です。\n\n' +
+          '使える割合が高いほど良いので、**1に近いほど優秀**。0.99 なら「99%の時間は使える」という意味になります。',
+      },
+      {
+        h: '装置をつなぐと、稼働率は変わる',
+        b:
+          'ここからが本題です。装置は普通、1台では動きません。' +
+          '何台かつないでシステムになります。\n\n' +
+          'つなぎ方には2種類あって、**どちらでつなぐかで稼働率の計算がまったく変わります。** ' +
+          'この2つを見分けられれば、この分野は8割終わりです。',
+      },
+      {
+        h: '① 直列 ＝ 全部そろわないとダメ',
+        b:
+          '1本の道に、装置が順番に並んでいる形です。\n\n' +
+          '　[A] → [B] → [C]\n\n' +
+          '**どれか1つでも壊れたら、そこで止まります。** ' +
+          '道が1本しかないので、迂回できません。\n\n' +
+          '身近な例だと、電車での通勤。乗り換えが3回あって、どの路線が止まっても会社に着けない。これが直列です。',
+      },
+      {
+        h: '② 並列 ＝ 1つでも生きていればOK',
+        b:
+          '同じ装置を何台か並べて、予備にする形です。\n\n' +
+          '　　┌ [B] ┐\n' +
+          '　─┤　　　├─\n' +
+          '　　└ [B] ┘\n\n' +
+          '**全部同時に壊れたときだけ止まります。** 1台生きていれば通れる。\n\n' +
+          '通勤の例なら、電車がダメでもバスがある、という状態。両方止まらない限り会社には着けます。' +
+          'これを **冗長化（じょうちょうか）** といい、システムを強くする基本の手です。',
+      },
+      {
+        h: 'この章で覚えること',
+        b:
+          '**直列は弱くなる。並列は強くなる。**\n\n' +
+          'これだけです。計算のしかたは次のページで、実際に手を動かしながら覚えます。',
+      },
+    ],
+
+    walk: {
+      intro:
+        '例題を一緒に解きます。**間違えても記録に残りません。** ' +
+        '分からなければ「答えを見る」を押してかまいません。むしろ最初は押しながら進めてください。',
+      question:
+        '稼働率 0.9 の装置Aと、稼働率 0.8 の装置Bを **直列** につないだ。\nシステム全体の稼働率はいくらか。',
+      steps: [
+        {
+          ask: 'まず、直列は「全部そろわないとダメ」でした。この場合、システムが動いているのはどんなときですか。',
+          choices: ['AとBの両方が動いているとき', 'AかBのどちらかが動いているとき', 'Aだけが動いているとき'],
+          ok: 0,
+          why:
+            '直列は1本道なので、Aが動いていて、**かつ** Bも動いていないと通れません。' +
+            '「かつ」がポイントです。',
+        },
+        {
+          ask: '「Aが動いていて、かつBも動いている」確率は、どう計算しますか。',
+          choices: ['0.9 × 0.8', '0.9 + 0.8', '(0.9 + 0.8) ÷ 2'],
+          ok: 0,
+          why:
+            '「AとBが**同時に**成り立つ確率」は掛け算です。\n\n' +
+            'コインを2回投げて2回とも表が出る確率が 1/2 × 1/2 = 1/4 になるのと同じ理屈。' +
+            '重なる条件は掛ける、と覚えてください。',
+        },
+        {
+          ask: 'では 0.9 × 0.8 はいくつですか。',
+          choices: ['0.72', '1.7', '0.85'],
+          ok: 0,
+          why: '0.9 × 0.8 = 0.72。これが答えです。',
+        },
+      ],
+      wrap:
+        '**答え：0.72**\n\n' +
+        'ここで大事なことに気づいてください。A単体は0.9、B単体は0.8だったのに、' +
+        'つないだら **0.72** と、どちらよりも低くなりました。\n\n' +
+        '1より小さい数を掛けているので、必ず下がります。' +
+        '**直列はつなぐほど弱くなる**——さっき読んだとおりです。',
+    },
+
+    try: [
+      {
+        q: '稼働率 0.9 の装置Aと、稼働率 0.9 の装置Bを **直列** につないだ。\nシステム全体の稼働率はいくらか。',
+        hint: '直列は掛け算。0.9 × 0.9 を計算してください。',
+        hint2:
+          '筆算にすると簡単です。9 × 9 = 81。\n' +
+          '0.9 は小数第1位、それが2つなので、答えは小数第2位までになります。',
+        choices: ['0.81', '0.9', '1.8', '0.99'],
+        ok: 0,
+        after:
+          '0.9 × 0.9 = 0.81。\n\n0.9が2つでも0.9のままにはなりません。つなぐほど下がるのが直列です。',
+      },
+      {
+        q: '稼働率 0.9 の装置を **2台並列** につないだ。\n1台でも動いていればシステムは動く。全体の稼働率はいくらか。',
+        hint:
+          '並列は裏返して考えます。\n① 1台が壊れる確率は 1 − 0.9 = 0.1\n② 2台とも壊れる確率は 0.1 × 0.1\n③ 動いている確率は、1 から②を引いたもの',
+        hint2:
+          '②を計算してみましょう。0.1 × 0.1 = 0.01 です。\n' +
+          'これが「2台とも壊れている確率」。残りが動いている確率なので、1 からこれを引きます。\n' +
+          '**1台のときの 0.9 より高くなるはず**、というのも手がかりになります。',
+        choices: ['0.99', '0.81', '0.1', '0.9'],
+        ok: 0,
+        after:
+          '1台が壊れる確率は 0.1。2台とも壊れるのは 0.1 × 0.1 = **0.01**。\n' +
+          'つまり99%は動いているので、**1 − 0.01 = 0.99** が答えです。\n\n' +
+          '0.9 の装置が、2台にしただけで 0.99 まで上がりました。**並列はつなぐほど強くなる。**',
+      },
+      {
+        q:
+          'あるシステムは、平均 **90時間** 動いたところで故障し、修理に平均 **10時間** かかる。\nこのシステムの稼働率はいくらか。',
+        hint:
+          '「動く→直す→動く→直す」の繰り返しだと考えてください。\n' +
+          '1回ぶんの長さは 90 + 10 = 100時間。そのうち動いているのは90時間です。',
+        hint2:
+          '「100時間のうち90時間は動いている」を割合にします。\n' +
+          '90 ÷ 100 を計算してください。100で割るのは、小数点を左に2つずらすのと同じです。',
+        choices: ['0.9', '0.1', '9', '0.99'],
+        ok: 0,
+        after:
+          '1サイクル 100時間のうち、動いているのが90時間。だから 90 ÷ 100 = **0.9**。\n\n' +
+          'ちなみに、この「平均90時間で壊れる」を **MTBF**、「平均10時間で直る」を **MTTR** と呼びます。' +
+          '本番の問題ではこの略語で出てきますが、やっていることは今の計算そのものです。',
+      },
+    ],
+
+    done:
+      '**稼働率の基本は、これで全部です。**\n\n' +
+      '・直列は掛ける（弱くなる）\n' +
+      '・並列は裏返して1から引く（強くなる）\n' +
+      '・MTBF ÷ (MTBF + MTTR) は「1サイクルのうち動いている割合」\n\n' +
+      '本番の問題は数字が半端になるだけで、考え方は今やったものと同じです。',
+  },
+
+  // =====================================================================
+  {
+    id: 'l-binary',
+    title: 'コンピュータの数の数え方',
+    subtitle: '2進数',
+    drillId: 'radix',
+    minutes: 7,
+
+    read: [
+      {
+        h: 'コンピュータは0と1しか知らない',
+        b:
+          'コンピュータの中身は、突き詰めると **スイッチの集まり** です。' +
+          'スイッチには「入っている」「切れている」の2つの状態しかありません。\n\n' +
+          'これを数字で書くと **1** と **0**。コンピュータが0と1しか使えないのは、' +
+          'そもそも部品が2状態しか表せないからです。\n\n' +
+          '0と1だけで数を表す書き方を **2進数（にしんすう）** といいます。',
+      },
+      {
+        h: 'ふだんの数え方（10進数）を思い出す',
+        b:
+          '私たちは0〜9の10種類を使います。9の次は桁が増えて10。\n\n' +
+          'たとえば **347** という数は、こう分解できます。\n\n' +
+          '　3 × 100　＝ 300\n' +
+          '　4 × 10　 ＝ 　40\n' +
+          '　7 × 1　　＝ 　 7\n' +
+          '　　　　　　合計 347\n\n' +
+          '桁が1つ左に行くたびに **10倍** になっていますね。1 → 10 → 100 → 1000。\n' +
+          'これが「10進数」と呼ばれる理由です。',
+      },
+      {
+        h: '2進数は、10倍が2倍になるだけ',
+        b:
+          '2進数もまったく同じ仕組みで、**桁が左に行くと2倍**になります。\n\n' +
+          '　1 → 2 → 4 → 8 → 16 → 32 → 64 → 128\n\n' +
+          'この並びを覚えてしまうと、あとは足し算だけで解けます。\n\n' +
+          'たとえば 2進数の **1011** は、\n\n' +
+          '　1 × 8 ＝ 8\n' +
+          '　0 × 4 ＝ 0\n' +
+          '　1 × 2 ＝ 2\n' +
+          '　1 × 1 ＝ 1\n' +
+          '　　　　合計 **11**\n\n' +
+          '1が立っている桁の数字を足すだけ。それ以上のことはしていません。',
+      },
+      {
+        h: 'この章で覚えること',
+        b:
+          '**1・2・4・8・16・32・64・128** の並び。これだけ覚えれば2進数は読めます。\n\n' +
+          '「1が立っているところを足す」——次のページで実際にやってみます。',
+      },
+    ],
+
+    walk: {
+      intro: '2進数を10進数に直してみます。数えるだけなので、電卓は要りません。',
+      question: '2進数の **110** を、ふだんの数（10進数）に直すといくつか。',
+      steps: [
+        {
+          ask: 'まず、3桁ぶんの「桁の重み」を右から並べてください。正しいのはどれですか。',
+          choices: ['右から 1・2・4', '右から 1・10・100', '右から 3・2・1'],
+          ok: 0,
+          why: '2進数は桁が左に行くと2倍。だから右から 1、2、4 になります。',
+        },
+        {
+          ask: '110 のうち、1が立っているのはどの桁ですか。',
+          choices: ['4の桁と2の桁', '2の桁と1の桁', '4の桁と1の桁'],
+          ok: 0,
+          why:
+            '110 を桁ごとに見ると、左から「1・1・0」。\n' +
+            '　4の桁 → 1\n　2の桁 → 1\n　1の桁 → 0\n\n' +
+            'なので、立っているのは4と2の桁です。',
+        },
+        {
+          ask: 'では、立っている桁を足すといくつですか。',
+          choices: ['6', '110', '3'],
+          ok: 0,
+          why: '4 + 2 = 6。これが答えです。',
+        },
+      ],
+      wrap:
+        '**答え：6**\n\n' +
+        '2進数の 110 は、10進数の 6。\n\n' +
+        'やったことは「1が立っている桁の重みを足す」だけです。' +
+        '桁が増えても、重みが 8・16・32… と伸びるだけで、やることは変わりません。',
+    },
+
+    try: [
+      {
+        q: '2進数の **101** を10進数にするといくつか。',
+        hint: '右から 1・2・4 の重み。1が立っているのは4の桁と1の桁です。',
+        hint2: '立っている桁の重みを足すだけです。4 と 1 を足してください。',
+        choices: ['5', '3', '101', '7'],
+        ok: 0,
+        after: '4 + 1 = **5**。真ん中の桁は0なので足しません。',
+      },
+      {
+        // 注意：この問題の重みを hint に列挙すると、答えそのものを書くことになる。
+        //（4桁の 1000 だと答えが「8」で、ヒントの「1・2・4・8」に含まれてしまう）
+        // そのため、複数の桁を足させる形にしてある。
+        q: '2進数の **1101** を10進数にするといくつか。',
+        hint: '4桁なので、重みは右から 1・2・4・8。1が立っている桁の重みを足します。',
+        hint2:
+          '左から順に見ていきます。\n' +
+          '　8の桁 → 1（足す）\n　4の桁 → 1（足す）\n　2の桁 → 0（足さない）\n　1の桁 → 1（足す）\n\n' +
+          '足すのは3つです。',
+        choices: ['13', '11', '1101', '14'],
+        ok: 0,
+        after:
+          '8 + 4 + 1 = **13**。2の桁は0なので足しません。\n\n' +
+          '2進数では、桁が1つ増えるたびに表せる数が2倍になります。4桁なら0〜15まで表せます。',
+      },
+      {
+        q: '10進数の **10** を2進数で書くとどうなるか。',
+        hint:
+          '逆向きに考えます。10 を作るには、1・2・4・8 のどれとどれを足せばよいでしょう。\n' +
+          '8 + 2 = 10 ですね。8の桁と2の桁に1を立てます。',
+        hint2:
+          '4桁を左から「8の桁・4の桁・2の桁・1の桁」と並べて、1を立てる場所を決めます。\n' +
+          '　8の桁 → 使う\n　4の桁 → 使わない\n　2の桁 → 使う\n　1の桁 → 使わない\n' +
+          'これを左から順に 1 と 0 で書いてください。',
+        choices: ['1010', '1100', '0101', '1001'],
+        ok: 0,
+        after:
+          '8の桁と2の桁に1を立てるので **1010**。\n\n' +
+          '左から順に「8あり・4なし・2あり・1なし」＝ 1010 です。',
+      },
+    ],
+
+    done:
+      '**2進数は、桁の重みを足すだけです。**\n\n' +
+      '・重みは右から 1・2・4・8・16・32・64・128\n' +
+      '・2進数→10進数：1が立っている桁を足す\n' +
+      '・10進数→2進数：大きい重みから引けるだけ引いていく\n\n' +
+      'この考え方は、このあとサブネット（IPアドレス）でもそのまま使います。' +
+      'ここが分かると一気に世界が広がる場所です。',
+  },
+
+  // =====================================================================
+  {
+    id: 'l-transfer',
+    title: 'ファイルを送るのにかかる時間',
+    subtitle: '伝送時間',
+    drillId: 'transfer',
+    minutes: 6,
+
+    read: [
+      {
+        h: 'まず、こういう話です',
+        b:
+          '大きな動画ファイルをアップロードすると、時間がかかりますよね。\n\n' +
+          'どれくらいかかるかは、**「送るデータの量」÷「1秒あたりに送れる量」** で決まります。' +
+          '水道でバケツに水を入れるのと同じで、バケツが大きいほど、蛇口が細いほど時間がかかる。\n\n' +
+          '考え方はこれだけです。ただし、**単位でつまずきます。** そこがこの分野の本体です。',
+      },
+      {
+        h: 'ビットとバイト —— ここが最大の関門',
+        b:
+          '同じデータ量なのに、2種類の単位が使われます。\n\n' +
+          '**バイト（B）** … ファイルの大きさを表すときに使う。「この動画は 50 メガバイト」\n' +
+          '**ビット（b）** … 通信の速さを表すときに使う。「この回線は 100 メガビット/秒」\n\n' +
+          '関係は **1バイト ＝ 8ビット**。バイトのほうが8倍大きい単位です。\n\n' +
+          '厄介なのは、**ファイルはバイト、回線はビット**で表す慣習があること。' +
+          'そのまま割り算すると8倍ずれます。**割る前に単位を揃える**、これが鉄則です。',
+      },
+      {
+        h: 'なぜ光回線1Gbpsでも1秒で1GB送れないのか',
+        b:
+          '「1ギガビット/秒」の回線なら、1ギガバイトのファイルが1秒で送れそうな気がします。\n\n' +
+          'でも実際は **8秒** かかります。1ギガバイト＝8ギガビットだからです。\n\n' +
+          'この「8倍」が、日常でも試験でも一番よくある勘違い。' +
+          '**bとBは8倍違う**、と意識するだけで正答率が変わります。',
+      },
+      {
+        h: 'この章で覚えること',
+        b:
+          '**時間 ＝ データ量 ÷ 速さ。ただし割る前に単位を揃える。**\n\n' +
+          'バイトをビットに直すには8を掛ける。次のページで実際にやってみます。',
+      },
+    ],
+
+    walk: {
+      intro: '実際に伝送時間を計算してみます。掛け算と割り算だけです。',
+      question:
+        '**10 Mバイト** のファイルを、**20 Mビット/秒** の回線で送る。\n何秒かかるか。',
+      steps: [
+        {
+          ask: 'まず確認です。このまま 10 ÷ 20 と計算してよいですか。',
+          choices: [
+            'ダメ。片方がバイト、片方がビットで単位が違う',
+            'よい。どちらもMなので揃っている',
+            'ダメ。秒に直す必要がある',
+          ],
+          ok: 0,
+          why:
+            'ファイルは **Mバイト**、回線は **Mビット/秒**。' +
+            'Mの部分は同じでも、バイトとビットが揃っていません。このまま割ると8倍ずれます。',
+        },
+        {
+          ask: '10 Mバイトをビットに直すと、いくつになりますか。',
+          choices: ['80 Mビット', '10 Mビット', '1.25 Mビット'],
+          ok: 0,
+          why:
+            '1バイト＝8ビットなので、**8を掛けます**。\n\n10 × 8 = 80 Mビット。\n\n' +
+            'バイトからビットへは「増える」方向。迷ったら「ビットのほうが細かい単位だから数は増える」と考えてください。',
+        },
+        {
+          ask: 'では 80 Mビットを 20 Mビット/秒 で送ると、何秒かかりますか。',
+          choices: ['4秒', '1600秒', '0.25秒'],
+          ok: 0,
+          why: '80 ÷ 20 = 4秒。単位が揃ったので、あとは割るだけです。',
+        },
+      ],
+      wrap:
+        '**答え：4秒**\n\n' +
+        '手順はいつも同じです。\n\n' +
+        '　① バイトなら8倍してビットにする\n' +
+        '　② データ量 ÷ 速さ\n\n' +
+        'もし①を飛ばすと 10 ÷ 20 = 0.5秒 となり、**正解の8分の1**になってしまいます。',
+    },
+
+    try: [
+      {
+        q: '**5 Mバイト** のファイルを、**8 Mビット/秒** の回線で送る。\n何秒かかるか。',
+        hint: 'まず 5 Mバイトを8倍してビットに直します。それから速さで割ります。',
+        hint2:
+          '5 × 8 = 40 Mビット。ここまで来たら、あとは回線の速さ 8 で割るだけです。\n' +
+          '40 ÷ 8 を計算してください。',
+        choices: ['5秒', '0.625秒', '40秒', '1.6秒'],
+        ok: 0,
+        after: '5 × 8 = 40 Mビット。40 ÷ 8 = **5秒**。\n\n8倍を忘れると0.625秒になります。',
+      },
+      {
+        q: '**100 Mバイト** のファイルを、**200 Mビット/秒** の回線で送る。\n何秒かかるか。',
+        hint: '100 × 8 = 800 Mビット。これを200で割ります。',
+        hint2:
+          '800 ÷ 200 は、800 の中に 200 がいくつ入るか、という計算です。\n' +
+          '200 が2つで400、3つで600、4つで800。',
+        choices: ['4秒', '0.5秒', '2秒', '8秒'],
+        ok: 0,
+        after:
+          '100 × 8 = 800 Mビット。800 ÷ 200 = **4秒**。\n\n' +
+          '「回線の数字のほうが大きいから1秒以下だろう」と考えると0.5秒になりますが、それが8倍の罠です。',
+      },
+      {
+        q:
+          '**10 Mバイト** のファイルを、**20 Mビット/秒** の回線で送る。ただし、この回線は' +
+          'データ以外の情報も一緒に流れるため、実際に使えるのは速さの **50%** しかない。\n何秒かかるか。',
+        hint:
+          '実際に使える速さを先に出します。20 × 0.5 = 10 Mビット/秒。\n' +
+          'あとはいつもどおり、80 Mビット をこの速さで割ります。',
+        hint2:
+          'データ量は 10 × 8 = 80 Mビット。使える速さは 20 の半分で 10 Mビット/秒。\n' +
+          '80 ÷ 10 を計算してください。効率が半分なので、**効率がないときの2倍の時間**がかかるはずです。',
+        choices: ['8秒', '4秒', '2秒', '40秒'],
+        ok: 0,
+        after:
+          '実際に使える速さは 20 × 0.5 = 10 Mビット/秒。\n80 ÷ 10 = **8秒**。\n\n' +
+          'この50%を **伝送効率** といいます。効率が悪いほど時間はかかるので、' +
+          '**速さに掛けてから割る**のが正しい順番です。',
+      },
+    ],
+
+    done:
+      '**伝送時間は、単位さえ揃えれば割り算だけです。**\n\n' +
+      '・1バイト ＝ 8ビット。ファイルはバイト、回線はビット\n' +
+      '・時間 ＝ データ量 ÷ 速さ（割る前に単位を揃える）\n' +
+      '・伝送効率があるときは、速さに掛けてから割る\n\n' +
+      '本番では「1Mバイト＝10⁶バイト」のような但し書きが付きますが、やることは同じです。',
+  },
+];
+
+function getLesson(id) {
+  return LESSONS.find((l) => l.id === id) || null;
+}
+
+// ===== src/learn/app.js ==========================================
+// 「はじめから」モードの画面。
+//
+// ドリル側（ui/app.js）とは方針が正反対なので、あえて別ファイルにしてある。
+//   ドリル … 即採点し、正誤を記録し、次の問題へ流す
+//   ここ　 … read/walk は採点しない。try で間違えても答えを出さず、
+//            ヒントを足して同じ問題をもう一度やらせる
+//
+// 「間違い＝罰」にしないための作りなので、成績（store の stats）には一切書かない。
+// 記録するのは「どのレッスンをどこまで進んだか」だけ。
+
+
+// ui/app.js と同名にすると単一スコープで衝突するため、learn層は接頭辞を付ける
+const $l = (sel, root = document) => root.querySelector(sel);
+
+function lesc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+// 本文の軽量マークアップ。**太字** と改行のみ（ui/app.js と同じ方針）。
+function md(s) {
+  return lesc(s)
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/\n/g, '<br>');
+}
+
+// --- 進捗の保存 ---------------------------------------------------------
+// 形: { [lessonId]: { read: bool, walk: bool, done: bool } }
+
+const PROGRESS = 'learn-progress';
+
+function getProgress() {
+  return store.get(PROGRESS, {}) || {};
+}
+
+function markProgress(lessonId, key) {
+  store.update(
+    PROGRESS,
+    (p) => {
+      const all = p || {};
+      all[lessonId] = Object.assign({}, all[lessonId], { [key]: true });
+      return all;
+    },
+    {}
+  );
+}
+
+// --- 画面状態 -----------------------------------------------------------
+
+const view = {
+  lesson: null, // 開いているレッスン
+  stage: 'read', // read / walk / try / done
+  page: 0, // read の何ページ目か
+  walkStep: 0, // walk の何問目か
+  tryIndex: 0, // try の何問目か
+  tryMisses: 0, // 今の問題で何回間違えたか（ヒントの出し方を変える）
+};
+
+function host() {
+  return $l('#learn-host');
+}
+
+// =======================================================================
+// 一覧
+// =======================================================================
+
+function renderList() {
+  const p = getProgress();
+
+  const cards = LESSONS.map((l, i) => {
+    const st = p[l.id] || {};
+    const label = st.done ? 'もう一度' : st.read || st.walk ? 'つづきから' : 'はじめる';
+    const badge = st.done
+      ? '<span class="lc-done">修了</span>'
+      : `<span class="lc-min">${l.minutes}分</span>`;
+
+    return `
+      <button class="lesson-card${st.done ? ' is-done' : ''}" data-lesson="${lesc(l.id)}">
+        <span class="lc-no">${i + 1}</span>
+        <span class="lc-main">
+          <span class="lc-title">${lesc(l.title)}</span>
+          <span class="lc-sub">${lesc(l.subtitle)}</span>
+        </span>
+        <span class="lc-right">${badge}<span class="lc-go">${label}</span></span>
+      </button>`;
+  }).join('');
+
+  host().innerHTML = `
+    <div class="panel learn-intro">
+      <h2>はじめから</h2>
+      <p>
+        用語をひとつも知らない状態から読み始められます。<br>
+        <b>読む → 一緒に解く → 自分で解く</b> の順に進むので、いきなり問題は出ません。
+      </p>
+      <p class="muted">
+        ここでの正誤は成績に記録されません。間違えても大丈夫です。
+      </p>
+    </div>
+    <div class="lesson-list">${cards}</div>
+    <p class="muted" style="margin-top:18px;text-align:center">
+      ひととおり終えたら「ドリル」タブで本番の問題に挑戦してみてください。
+    </p>
+  `;
+
+  host()
+    .querySelectorAll('[data-lesson]')
+    .forEach((b) => b.addEventListener('click', () => openLesson(b.dataset.lesson)));
+}
+
+function openLesson(id) {
+  view.lesson = getLesson(id);
+  view.stage = 'read';
+  view.page = 0;
+  view.walkStep = 0;
+  view.tryIndex = 0;
+  view.tryMisses = 0;
+  render();
+}
+
+// =======================================================================
+// 共通の枠
+// =======================================================================
+
+const STAGE_LABEL = { read: '読む', walk: '一緒に解く', try: '自分で解く', done: '修了' };
+
+function frame(inner) {
+  const l = view.lesson;
+  const order = ['read', 'walk', 'try'];
+  const at = order.indexOf(view.stage);
+
+  const dots = order
+    .map((s, i) => {
+      const cls = view.stage === 'done' || i < at ? 'ok' : i === at ? 'now' : '';
+      return `<span class="pg-step ${cls}">${STAGE_LABEL[s]}</span>`;
+    })
+    .join('<span class="pg-line" aria-hidden="true"></span>');
+
+  return `
+    <div class="panel">
+      <div class="lesson-head">
+        <button class="btn back" id="learn-back">← 一覧</button>
+        <div class="lh-title">
+          <strong>${lesc(l.title)}</strong>
+          <span class="muted">${lesc(l.subtitle)}</span>
+        </div>
+      </div>
+      <div class="progress-bar" role="group" aria-label="進み具合">${dots}</div>
+      ${inner}
+    </div>`;
+}
+
+function render() {
+  if (!view.lesson) return renderList();
+  if (view.stage === 'read') renderRead();
+  else if (view.stage === 'walk') renderWalk();
+  else if (view.stage === 'try') renderTry();
+  else renderDone();
+
+  const back = $l('#learn-back');
+  if (back) back.addEventListener('click', () => renderList());
+  window.scrollTo({ top: 0 });
+}
+
+// =======================================================================
+// ① 読む
+// =======================================================================
+
+function renderRead() {
+  const l = view.lesson;
+  const total = l.read.length;
+  const pageData = l.read[view.page];
+  const last = view.page === total - 1;
+
+  host().innerHTML = frame(`
+    <div class="read-page">
+      <div class="read-count">${view.page + 1} / ${total}</div>
+      <h3>${lesc(pageData.h)}</h3>
+      <div class="read-body">${md(pageData.b)}</div>
+    </div>
+    <div class="row" style="margin-top:18px">
+      ${view.page > 0 ? '<button class="btn" id="read-prev">戻る</button>' : ''}
+      <span class="spacer"></span>
+      <button class="btn primary" id="read-next">${last ? '一緒に解いてみる →' : '次へ'}</button>
+    </div>
+  `);
+
+  const prev = $l('#read-prev');
+  if (prev) prev.addEventListener('click', () => { view.page--; render(); });
+
+  $l('#read-next').addEventListener('click', () => {
+    if (last) {
+      markProgress(l.id, 'read');
+      view.stage = 'walk';
+    } else {
+      view.page++;
+    }
+    render();
+  });
+}
+
+// =======================================================================
+// ② 一緒に解く（採点しない）
+// =======================================================================
+
+function renderWalk() {
+  const l = view.lesson;
+  const w = l.walk;
+  const total = w.steps.length;
+  const s = w.steps[view.walkStep];
+  const finished = view.walkStep >= total;
+
+  if (finished) {
+    host().innerHTML = frame(`
+      <div class="walk-wrap">
+        <div class="walk-q">${md(w.question)}</div>
+        <div class="ex trap" style="margin-top:16px">
+          <h4><span class="ex-icon" aria-hidden="true">✓</span>まとめ</h4>
+          <div class="ex-body">${md(w.wrap)}</div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:18px">
+        <span class="spacer"></span>
+        <button class="btn primary" id="walk-done">自分で解いてみる →</button>
+      </div>
+    `);
+    $l('#walk-done').addEventListener('click', () => {
+      markProgress(l.id, 'walk');
+      view.stage = 'try';
+      view.tryIndex = 0;
+      view.tryMisses = 0;
+      render();
+    });
+    return;
+  }
+
+  host().innerHTML = frame(`
+    <div class="walk-wrap">
+      ${view.walkStep === 0 ? `<div class="walk-intro">${md(w.intro)}</div>` : ''}
+      <div class="walk-q">${md(w.question)}</div>
+      <div class="walk-step">
+        <div class="ws-count">ステップ ${view.walkStep + 1} / ${total}</div>
+        <div class="ws-ask">${md(s.ask)}</div>
+        <div class="choices" id="walk-choices"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn subtle" id="walk-peek">答えを見る</button>
+        </div>
+        <div class="walk-why hidden" id="walk-why"></div>
+      </div>
+    </div>
+  `);
+
+  const box = $l('#walk-choices');
+  s.choices.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'choice';
+    b.type = 'button';
+    b.setAttribute('aria-label', c);
+    b.innerHTML = `<span class="val">${lesc(c)}</span>`;
+    b.addEventListener('click', () => revealWalk(i));
+    box.appendChild(b);
+  });
+
+  $l('#walk-peek').addEventListener('click', () => revealWalk(null));
+}
+
+// walk では「不正解」を出さない。選んだものが違っていても、
+// 正解を示して理由を読ませ、そのまま次へ進ませる（ここは練習ではなく解説）。
+function revealWalk(picked) {
+  const s = view.lesson.walk.steps[view.walkStep];
+  const btns = Array.from(host().querySelectorAll('#walk-choices .choice'));
+  btns.forEach((b, i) => {
+    b.disabled = true;
+    if (i === s.ok) b.classList.add('correct');
+    else if (i === picked) b.classList.add('dim');
+  });
+
+  const peek = $l('#walk-peek');
+  if (peek) peek.classList.add('hidden');
+
+  const why = $l('#walk-why');
+  why.classList.remove('hidden');
+  why.innerHTML = `
+    <div class="ws-why">${md(s.why)}</div>
+    <div class="row" style="margin-top:12px">
+      <span class="spacer"></span>
+      <button class="btn primary" id="walk-next">次へ</button>
+    </div>`;
+  $l('#walk-next').addEventListener('click', () => { view.walkStep++; render(); });
+}
+
+// =======================================================================
+// ③ 自分で解く（間違えても答えを出さない）
+// =======================================================================
+
+function renderTry() {
+  const l = view.lesson;
+  const total = l.try.length;
+  const t = l.try[view.tryIndex];
+
+  host().innerHTML = frame(`
+    <div class="try-wrap">
+      <div class="try-count">${view.tryIndex + 1} 問目 / ${total}</div>
+      <div class="try-q">${md(t.q)}</div>
+      <div class="try-hint"><b>ヒント</b><br>${md(t.hint)}</div>
+      <div class="choices" id="try-choices"></div>
+      <div class="try-result hidden" id="try-result"></div>
+    </div>
+  `);
+
+  const box = $l('#try-choices');
+  t.choices.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'choice';
+    b.type = 'button';
+    b.setAttribute('aria-label', c);
+    b.innerHTML = `<span class="val">${lesc(c)}</span>`;
+    b.addEventListener('click', () => judgeTry(i));
+    box.appendChild(b);
+  });
+}
+
+function judgeTry(picked) {
+  const l = view.lesson;
+  const t = l.try[view.tryIndex];
+  const box = $l('#try-result');
+
+  if (picked !== t.ok) {
+    // 間違えたときは正解を出さない。選んだ肢だけ落として、もう一度選ばせる。
+    // 初学者にとって「不正解です、正解はイでした」は学習ではなく通告になるため。
+    //
+    // 2回目以降は hint2（答えを含まない、より噛み砕いた誘導）に切り替える。
+    // ここで t.after を出すと答えそのものが漏れる（実際にそのバグを踏んだ）。
+    view.tryMisses++;
+    const b = host().querySelectorAll('#try-choices .choice')[picked];
+    b.disabled = true;
+    b.classList.add('dim');
+
+    const guide = view.tryMisses === 1 ? t.hint : t.hint2 || t.hint;
+
+    box.classList.remove('hidden');
+    box.innerHTML = `
+      <div class="try-again">
+        <b>${view.tryMisses === 1 ? 'おしい。もう一度考えてみましょう。' : 'あと少しです。'}</b><br>
+        ${md(guide)}
+      </div>`;
+    return;
+  }
+
+  // 正解
+  const btns = host().querySelectorAll('#try-choices .choice');
+  btns.forEach((b, i) => {
+    b.disabled = true;
+    if (i === t.ok) b.classList.add('correct');
+  });
+
+  const last = view.tryIndex === l.try.length - 1;
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <div class="try-ok">${view.tryMisses === 0 ? 'そのとおりです' : 'できました'}</div>
+    <div class="try-after">${md(t.after)}</div>
+    <div class="row" style="margin-top:14px">
+      <span class="spacer"></span>
+      <button class="btn primary" id="try-next">${last ? 'まとめを見る →' : '次の問題 →'}</button>
+    </div>`;
+
+  $l('#try-next').addEventListener('click', () => {
+    if (last) {
+      markProgress(l.id, 'done');
+      view.stage = 'done';
+    } else {
+      view.tryIndex++;
+      view.tryMisses = 0;
+    }
+    render();
+  });
+}
+
+// =======================================================================
+// ④ 修了
+// =======================================================================
+
+function renderDone() {
+  const l = view.lesson;
+  const idx = LESSONS.findIndex((x) => x.id === l.id);
+  const nextLesson = LESSONS[idx + 1];
+
+  host().innerHTML = frame(`
+    <div class="done-wrap">
+      <div class="done-mark">修了</div>
+      <div class="done-body">${md(l.done)}</div>
+      <div class="done-actions">
+        <button class="btn primary" id="done-drill">本番の問題を解いてみる</button>
+        ${nextLesson ? `<button class="btn" id="done-next">次のレッスン：${lesc(nextLesson.subtitle)}</button>` : ''}
+        <button class="btn subtle" id="done-list">一覧に戻る</button>
+      </div>
+    </div>
+  `);
+
+  $l('#done-drill').addEventListener('click', () => {
+    // ドリルタブへ渡す。ui/app.js が拾って分野を絞り込む。
+    window.dispatchEvent(new CustomEvent('ap:drill', { detail: { genId: l.drillId } }));
+  });
+
+  const nx = $l('#done-next');
+  if (nx) nx.addEventListener('click', () => openLesson(nextLesson.id));
+
+  $l('#done-list').addEventListener('click', () => renderList());
+}
+
+// =======================================================================
+
+function mountLearn() {
+  renderList();
+}
+
+// ===== src/ui/app.js =============================================
+// 画面まわり。ここだけがDOMに触る層。
+// 将来React等へ載せ替えるときは、このファイルを捨てて core/ をそのまま使う。
+
+
+
+
+
+const CHOICE_LABELS = ['ア', 'イ', 'ウ', 'エ'];
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+// XSS対策というより、問題文に <> が入っても壊れないようにするため。
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+// --- 状態 ---------------------------------------------------------------
+
+const state = {
+  current: null, // 現在の問題
+  answered: false,
+  selected: new Set(), // 有効な分野ID
+};
+
+// --- タブ ---------------------------------------------------------------
+
+let currentTab = null;
+
+function showTab(name) {
+  $$('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+  $$('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== name));
+  if (name === 'stats') renderStats();
+  // 実際にタブが変わったときだけ先頭へ戻す。
+  // 初回表示や同じタブの再描画でスクロール位置を動かすと、読んでいる途中で飛んでしまう。
+  if (currentTab !== null && currentTab !== name) window.scrollTo({ top: 0 });
+  currentTab = name;
+  store.set('last-tab', name);
+}
+
+// --- 分野フィルタ -------------------------------------------------------
+
+function loadSelection() {
+  const saved = store.get('filters', null);
+  const ids = allGenerators().map((g) => g.id);
+  if (Array.isArray(saved) && saved.length) {
+    const valid = saved.filter((id) => ids.indexOf(id) >= 0);
+    state.selected = new Set(valid.length ? valid : ids);
+  } else {
+    state.selected = new Set(ids);
+  }
+}
+
+function saveSelection() {
+  store.set('filters', Array.from(state.selected));
+}
+
+function renderFilters() {
+  const box = $('#filters');
+  box.innerHTML = '';
+
+  const all = document.createElement('button');
+  all.className = 'chip';
+  all.textContent = 'すべて';
+  all.setAttribute('aria-pressed', String(state.selected.size === allGenerators().length));
+  all.addEventListener('click', () => {
+    const gens = allGenerators();
+    state.selected = state.selected.size === gens.length ? new Set([gens[0].id]) : new Set(gens.map((g) => g.id));
+    saveSelection();
+    renderFilters();
+  });
+  box.appendChild(all);
+
+  for (const g of allGenerators()) {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = g.name;
+    b.setAttribute('aria-pressed', String(state.selected.has(g.id)));
+    b.addEventListener('click', () => {
+      if (state.selected.has(g.id)) {
+        // 最後の1つは外させない（出題できなくなるため）
+        if (state.selected.size > 1) state.selected.delete(g.id);
+      } else {
+        state.selected.add(g.id);
+      }
+      saveSelection();
+      renderFilters();
+    });
+    box.appendChild(b);
+  }
+}
+
+// --- 出題 ---------------------------------------------------------------
+
+function pickGeneratorId() {
+  const ids = allGenerators()
+    .map((g) => g.id)
+    .filter((id) => state.selected.has(id));
+  const pool = ids.length ? ids : allGenerators().map((g) => g.id);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function nextQuestion(fixed) {
+  const genId = (fixed && fixed.genId) || pickGeneratorId();
+  const seed = (fixed && fixed.seed) != null ? fixed.seed : randomSeed();
+
+  try {
+    state.current = generate(genId, seed);
+  } catch (e) {
+    // 1つのジェネレータが失敗しても画面全体は止めない
+    $('#question').innerHTML =
+      `<p class="verdict ng">問題の生成に失敗しました（${esc(genId)}）</p>` +
+      `<p class="muted">${esc(e && e.message ? e.message : e)}</p>`;
+    return;
+  }
+  state.answered = false;
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = state.current;
+  const el = $('#question');
+
+  el.innerHTML = `
+    <div class="qmeta">
+      <span class="badge">${esc(q.generatorName)}</span>
+      <span>${esc(q.category)}</span>
+      <span class="spacer"></span>
+      <span title="この番号を控えると同じ問題を再現できます">seed: ${q.seed}</span>
+    </div>
+    ${q.svg ? `<div class="figure">${q.svg}</div>` : ''}
+    <div class="qtext">${esc(q.question)}</div>
+    ${q.hint ? `<div class="hint">ヒント：${esc(q.hint)}</div>` : ''}
+    <div class="choices" id="choices"></div>
+    <div class="result hidden" id="result"></div>
+  `;
+
+  const box = $('#choices');
+  q.choices.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'choice';
+    b.type = 'button';
+    // 選択肢の中身は span で組んでいるが、それだけだとスクリーンリーダーや
+    // 自動テストから「名前のないボタン」に見えるので、明示的にラベルを付ける。
+    b.setAttribute('aria-label', `${CHOICE_LABELS[i]}、${c}`);
+    b.innerHTML = `<span class="mark" aria-hidden="true">${CHOICE_LABELS[i]}</span><span class="val">${esc(c)}</span>`;
+    b.addEventListener('click', () => answer(i));
+    box.appendChild(b);
+  });
+
+  $('#next').textContent = '次の問題';
+}
+
+function answer(index) {
+  if (state.answered) return;
+  state.answered = true;
+
+  const q = state.current;
+  const ok = index === q.answerIndex;
+
+  recordAnswer({ generatorId: q.generatorId, ok, seed: q.seed });
+
+  // 選択肢の見た目を確定させ、誤答には「なぜ間違えるか」を出す。
+  // 正解しても他の選択肢の理由を読めるようにしておく（ここが復習の中心）。
+  $$('#choices .choice').forEach((b, i) => {
+    b.disabled = true;
+    const meta = q.choiceMeta[i];
+    if (i === q.answerIndex) {
+      b.classList.add('correct');
+    } else if (i === index) {
+      b.classList.add('wrong');
+    } else {
+      b.classList.add('dim');
+    }
+    if (!meta.correct && meta.why) {
+      const why = document.createElement('span');
+      why.className = 'why';
+      why.textContent = meta.why;
+      b.querySelector('.val').appendChild(why);
+    }
+  });
+
+  const r = $('#result');
+  r.classList.remove('hidden');
+
+  // 式だけを並べたブロック。explain がある分野では折りたたみに退避する
+  // （公式を知っている人の確認用であって、これから覚える人の読み物ではないため）。
+  const stepsHtml = `
+    <ul class="steps">
+      ${q.steps
+        .map((s) => {
+          const v =
+            s.value === null || s.value === undefined
+              ? ''
+              : `<span class="eq">= ${esc(fmtStepValue(s.value))}${esc(s.unit || '')}</span>`;
+          return `<li><span class="lbl">${esc(s.label)}</span><span class="expr">${esc(s.expr)}</span>${v}</li>`;
+        })
+        .join('')}
+    </ul>`;
+
+  const hasExplain = q.explain && q.explain.length;
+
+  r.innerHTML = `
+    <div class="verdict ${ok ? 'ok' : 'ng'}">${ok ? '正解' : `不正解　正解は ${CHOICE_LABELS[q.answerIndex]}：${esc(q.answerText)}`}</div>
+    ${hasExplain ? renderExplain(q.explain) : stepsHtml}
+    ${
+      hasExplain
+        ? `<details class="formula"><summary>式だけを見る</summary>${stepsHtml}</details>`
+        : ''
+    }
+    ${q.note ? `<div class="note">${esc(q.note)}</div>` : ''}
+  `;
+
+  // 解説を読ませたいので、ここでフォーカスやスクロールを動かさない。
+  // 以前 $('#next').focus() を呼んでいたが、ブラウザがボタン位置まで
+  // 自動スクロールしてしまい、答え合わせの直後に画面が飛んでいた。
+}
+
+// --- 教える解説 ---------------------------------------------------------
+
+const EXPLAIN_KIND = {
+  ask: { icon: '?', cls: 'ask' },
+  why: { icon: '!', cls: 'why-block' },
+  calc: { icon: '=', cls: 'calc' },
+  trap: { icon: '×', cls: 'trap' },
+};
+
+// 解説本文の軽量マークアップ。**太字** と改行だけを通す。
+// esc() を通したあとに置換するので、本文に <b> と書かれていても実体参照のまま残る。
+function fmtExplainBody(s) {
+  return esc(s)
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/\n/g, '<br>');
+}
+
+function renderExplain(blocks) {
+  return `<div class="explain">${blocks
+    .map((b) => {
+      const k = EXPLAIN_KIND[b.kind] || EXPLAIN_KIND.why;
+      return `
+        <section class="ex ${k.cls}">
+          <h4><span class="ex-icon" aria-hidden="true">${k.icon}</span>${esc(b.title)}</h4>
+          <div class="ex-body">${fmtExplainBody(b.body)}</div>
+        </section>`;
+    })
+    .join('')}</div>`;
+}
+
+// 解説中の数値表示。桁が多いときだけ丸める（元の値を壊さない範囲で）。
+function fmtStepValue(v) {
+  if (typeof v !== 'number') return String(v);
+  if (Number.isInteger(v)) return v.toLocaleString('ja-JP');
+  return String(Math.round(v * 10000) / 10000);
+}
+
+// --- 成績 ---------------------------------------------------------------
+
+function renderStats() {
+  const stats = getStats();
+  const gens = allGenerators();
+
+  let total = 0;
+  let correct = 0;
+  for (const id in stats) {
+    total += stats[id].total;
+    correct += stats[id].correct;
+  }
+
+  $('#stats-summary').innerHTML = `
+    <div class="readout">
+      <div class="stat"><div class="k">解いた問題</div><div class="v">${total}</div></div>
+      <div class="stat"><div class="k">正解</div><div class="v">${correct}</div></div>
+      <div class="stat accent"><div class="k">正答率</div><div class="v">${
+        total ? Math.round((correct / total) * 100) : 0
+      }%</div></div>
+    </div>
+  `;
+
+  const rows = gens
+    .map((g) => {
+      const s = stats[g.id] || { correct: 0, total: 0 };
+      const rate = s.total ? s.correct / s.total : null;
+      return { g, s, rate };
+    })
+    // 正答率が低い順（＝苦手な分野）を上に。未挑戦は最後。
+    .sort((a, b) => {
+      if (a.rate === null && b.rate === null) return 0;
+      if (a.rate === null) return 1;
+      if (b.rate === null) return -1;
+      return a.rate - b.rate;
+    });
+
+  $('#stats-table').innerHTML = `
+    <table class="stats">
+      <thead><tr><th>分野</th><th>正解 / 出題</th><th>正答率</th></tr></thead>
+      <tbody>
+        ${rows
+          .map(
+            ({ g, s, rate }) => `
+          <tr>
+            <td>${esc(g.name)}<span class="bar"><span style="width:${
+              rate === null ? 0 : Math.round(rate * 100)
+            }%"></span></span></td>
+            <td class="num">${s.correct} / ${s.total}</td>
+            <td class="num">${rate === null ? '—' : Math.round(rate * 100) + '%'}</td>
+          </tr>`
+          )
+          .join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// --- 起動 ---------------------------------------------------------------
+
+function boot() {
+  loadSelection();
+  renderFilters();
+
+  $$('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  $('#next').addEventListener('click', () => nextQuestion());
+  $('#retry').addEventListener('click', () => {
+    if (state.current) nextQuestion({ genId: state.current.generatorId, seed: state.current.seed });
+  });
+  $('#reset-stats').addEventListener('click', () => {
+    if (confirm('成績をすべて消去します。よろしいですか？')) {
+      resetStats();
+      renderStats();
+    }
+  });
+
+  // シミュレータから「この分野を解く」で飛んでくる
+  window.addEventListener('ap:drill', (e) => {
+    const genId = e.detail && e.detail.genId;
+    if (genId) {
+      state.selected = new Set([genId]);
+      saveSelection();
+      renderFilters();
+      nextQuestion({ genId });
+    }
+    showTab('drill');
+  });
+
+  mountSimulators();
+  mountLearn();
+  nextQuestion();
+
+  // 初回は「はじめから」で開く。いきなり4択が飛んでくると、まだ習っていない人には
+  // 当てずっぽうしかできず、間違いを突きつけられるだけになるため。
+  // 一度でもドリルを使った人には、以前見ていたタブを復元する。
+  const lastTab = store.get('last-tab', null);
+  showTab(lastTab === 'drill' || lastTab === 'sim' || lastTab === 'stats' ? lastTab : 'learn');
+}
+
+// ===== src/ui/main.js ============================================
+// エントリポイント。ビルドはここから依存をたどる。
+
+boot();
+
+</script>
+<script>
+// Service Worker は file:// では動かない（登録しようとすると例外になる）ので、
+// http(s) で開かれたときだけ登録する。file:// で開いてもドリルは通常どおり動く。
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>

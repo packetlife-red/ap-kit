@@ -1,0 +1,678 @@
+/* 応用情報ドリル — 単一ファイルに埋め込まれるスタイル。
+   外部フォント・外部CSSは読み込まない（オフライン動作とストア審査のため）。 */
+
+:root {
+  color-scheme: light dark;
+
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --panel-2: #f0f2f5;
+  --text: #1a1d23;
+  --muted: #656c7a;
+  --line: #d9dee6;
+  --accent: #2f6fd0;
+  --accent-weak: #e6effc;
+  --ok: #1f8a52;
+  --ok-weak: #e2f5ea;
+  --ng: #c8403a;
+  --ng-weak: #fceceb;
+  --warn: #b8770a;
+
+  --radius: 10px;
+  --gap: 16px;
+  --maxw: 860px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --panel: #1c1f25;
+    --panel-2: #23272e;
+    --text: #e8eaed;
+    --muted: #9aa2b1;
+    --line: #333944;
+    --accent: #6ba4f0;
+    --accent-weak: #1e2c42;
+    --ok: #5fd493;
+    --ok-weak: #16301f;
+    --ng: #f0857f;
+    --ng-weak: #33191a;
+    --warn: #e0aa4a;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  /* システムフォントのみ。日本語環境で確実に出るものを並べる */
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 14px 64px;
+}
+
+/* --- ヘッダ・タブ ------------------------------------------------------ */
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
+  padding: 10px 0 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.title h1 {
+  font-size: 17px;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.title .sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tabs button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 14px;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+}
+
+.tabs button[aria-selected='true'] {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: -1px;
+}
+
+.tabs button:hover:not([aria-selected='true']) { color: var(--text); }
+
+/* --- 汎用パーツ -------------------------------------------------------- */
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-top: var(--gap);
+}
+
+button.btn {
+  appearance: none;
+  font: inherit;
+  font-size: 14px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button.btn:hover { border-color: var(--accent); }
+
+button.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+button.btn.primary:hover { opacity: 0.9; }
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.spacer { flex: 1; }
+.muted { color: var(--muted); font-size: 13px; }
+.hidden { display: none !important; }
+
+/* --- 分野フィルタ ------------------------------------------------------ */
+
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+.chip {
+  appearance: none;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* --- 問題 -------------------------------------------------------------- */
+
+.qmeta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.qmeta .badge {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 10px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.qtext {
+  font-size: 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 12px;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border-left: 3px solid var(--line);
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 14px;
+}
+
+.choices { display: grid; gap: 8px; }
+
+.choice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.choice:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-weak); }
+.choice:disabled { cursor: default; }
+
+.choice .mark {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.choice .val { flex: 1; word-break: break-word; }
+
+.choice .why {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.6;
+}
+
+.choice.correct { border-color: var(--ok); background: var(--ok-weak); }
+.choice.correct .mark { background: var(--ok); border-color: var(--ok); color: #fff; }
+.choice.wrong { border-color: var(--ng); background: var(--ng-weak); }
+.choice.wrong .mark { background: var(--ng); border-color: var(--ng); color: #fff; }
+.choice.dim { opacity: 0.65; }
+
+/* --- 解説 -------------------------------------------------------------- */
+
+.result {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+
+.verdict { font-weight: 700; margin-bottom: 10px; }
+.verdict.ok { color: var(--ok); }
+.verdict.ng { color: var(--ng); }
+
+.steps { display: grid; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+
+.steps li {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  padding: 7px 12px;
+  background: var(--panel-2);
+  border-radius: 6px;
+}
+
+.steps .lbl { color: var(--muted); flex: 0 0 auto; }
+.steps .expr { font-variant-numeric: tabular-nums; }
+.steps .eq { font-weight: 700; }
+
+.note {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--accent-weak);
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+/* --- 教える解説 --------------------------------------------------------- */
+
+.explain { display: grid; gap: 10px; margin-top: 12px; }
+
+.ex {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+  background: var(--panel-2);
+}
+
+.ex h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ex-icon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--muted);
+}
+
+.ex-body {
+  font-size: 14.5px;
+  line-height: 1.85;
+  word-break: break-word;
+}
+
+.ex-body b { font-weight: 700; }
+
+/* 種類ごとの色分け。順に読んでいけば理解が積み上がるよう、
+   「聞かれていること → 理屈 → 計算 → 注意」の並びを色でも示す。 */
+.ex.ask { border-left-color: var(--muted); }
+.ex.why-block { border-left-color: var(--accent); background: var(--accent-weak); }
+.ex.why-block .ex-icon { background: var(--accent); }
+.ex.calc { border-left-color: var(--ok); }
+.ex.calc .ex-icon { background: var(--ok); }
+/* 計算ブロックは数字を縦に揃えたいので等幅の数字を使う */
+.ex.calc .ex-body { font-variant-numeric: tabular-nums; }
+.ex.trap { border-left-color: var(--ng); background: var(--ng-weak); }
+.ex.trap .ex-icon { background: var(--ng); }
+
+/* 式だけの折りたたみ。既に理解している人の確認用 */
+.formula { margin-top: 12px; }
+
+.formula > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 6px 0;
+  user-select: none;
+}
+
+.formula > summary:hover { color: var(--text); }
+
+/* --- SVG図（PERT等） --------------------------------------------------- */
+
+/* overflow-x を付けると内部の width:100% が解決できず幅0に潰れるので、
+   width:100% を明示する（実際にSVGが 0×0 で見えなくなる不具合が出た）。 */
+.figure {
+  margin: 4px 0 14px;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.pert-svg {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  color: var(--muted);
+}
+
+.pert-svg .edges line {
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.pert-svg .edges line.crit {
+  stroke: var(--accent);
+  stroke-width: 3.5;
+}
+
+.pert-svg .nodes circle {
+  fill: var(--panel);
+  stroke: var(--muted);
+  stroke-width: 2;
+}
+
+.pert-svg text {
+  fill: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.pert-svg text.nd { text-anchor: middle; font-weight: 700; font-size: 13px; }
+.pert-svg .labels text { fill: var(--muted); font-size: 12px; text-anchor: middle; }
+
+/* --- 成績 -------------------------------------------------------------- */
+
+table.stats { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.stats th, table.stats td { padding: 9px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+table.stats th { color: var(--muted); font-weight: 600; font-size: 13px; }
+table.stats td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.bar {
+  display: block;
+  height: 6px;
+  background: var(--panel-2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+.bar > span { display: block; height: 100%; background: var(--accent); }
+
+/* --- はじめから（レッスン） -------------------------------------------- */
+
+.learn-intro h2 { font-size: 18px; margin: 0 0 10px; }
+.learn-intro p { margin: 0 0 8px; font-size: 14.5px; line-height: 1.8; }
+
+.lesson-list { display: grid; gap: 10px; margin-top: var(--gap); }
+
+.lesson-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.lesson-card:hover { border-color: var(--accent); background: var(--accent-weak); }
+.lesson-card.is-done { border-color: var(--ok); }
+
+.lc-no {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.lesson-card.is-done .lc-no { background: var(--ok); }
+
+.lc-main { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.lc-title { font-weight: 600; font-size: 15.5px; }
+.lc-sub { font-size: 12.5px; color: var(--muted); }
+
+.lc-right { flex: 0 0 auto; display: grid; gap: 3px; justify-items: end; }
+.lc-min, .lc-done { font-size: 11.5px; color: var(--muted); }
+.lc-done { color: var(--ok); font-weight: 700; }
+.lc-go { font-size: 13px; color: var(--accent); font-weight: 600; }
+
+/* 見出し行 */
+.lesson-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.lh-title { display: grid; gap: 1px; min-width: 0; }
+.lh-title strong { font-size: 15.5px; }
+.lh-title .muted { font-size: 12px; }
+button.btn.back { padding: 6px 12px; font-size: 13px; }
+button.btn.subtle { background: transparent; color: var(--muted); }
+button.btn.subtle:hover { color: var(--text); }
+
+/* 進み具合 */
+.progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pg-step {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.pg-step.now { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.pg-step.ok { border-color: var(--ok); color: var(--ok); }
+.pg-line { flex: 1; height: 1px; background: var(--line); }
+
+/* ① 読む */
+.read-count { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.read-page h3 { font-size: 17px; margin: 0 0 12px; line-height: 1.5; }
+.read-body { font-size: 15.5px; line-height: 2; word-break: break-word; }
+.read-body b { font-weight: 700; }
+
+/* ② 一緒に解く */
+.walk-intro {
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  line-height: 1.8;
+}
+
+.walk-q {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.8;
+  padding: 14px 16px;
+  background: var(--accent-weak);
+  border-radius: 8px;
+  word-break: break-word;
+}
+
+.walk-step { margin-top: 18px; }
+.ws-count { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.ws-ask { font-size: 15px; line-height: 1.8; margin-bottom: 12px; }
+
+.ws-why {
+  font-size: 14.5px;
+  line-height: 1.9;
+  background: var(--ok-weak);
+  border-left: 4px solid var(--ok);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+  margin-top: 14px;
+}
+
+/* ③ 自分で解く */
+.try-count { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+.try-q {
+  font-size: 16px;
+  line-height: 1.85;
+  margin-bottom: 12px;
+  word-break: break-word;
+}
+
+.try-hint {
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--text);
+  background: var(--panel-2);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 11px 14px;
+  margin-bottom: 16px;
+}
+
+.try-result { margin-top: 16px; }
+
+/* 間違えても正解は出さない。色も赤ではなく警告色にして、通告に見せない */
+.try-again {
+  font-size: 14.5px;
+  line-height: 1.9;
+  background: var(--panel-2);
+  border-left: 4px solid var(--warn);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+}
+
+.try-ok { font-weight: 700; color: var(--ok); margin-bottom: 10px; }
+
+.try-after {
+  font-size: 14.5px;
+  line-height: 1.9;
+  background: var(--ok-weak);
+  border-left: 4px solid var(--ok);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+}
+
+/* ④ 修了 */
+.done-wrap { text-align: center; }
+
+.done-mark {
+  display: inline-block;
+  background: var(--ok);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 4px 16px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+
+.done-body {
+  font-size: 15px;
+  line-height: 2;
+  text-align: left;
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.done-actions { display: grid; gap: 8px; margin-top: 20px; justify-items: stretch; }
+
+/* --- シミュレータ ------------------------------------------------------ */
+
+.sim-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+
+.sim-stage {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+.ctrl { display: grid; gap: 12px; margin-top: 8px; }
+
+.ctrl label {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.ctrl input[type='range'] { width: 100%; accent-color: var(--accent); }
+.ctrl .v { font-variant-numeric: tabular-nums; min-width: 70px; text-align: right; color: var(--muted); }
+
+.readout { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+
+.stat {
+  flex: 1 1 130px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.stat .k { font-size: 12px; color: var(--muted); }
+.stat .v { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat.accent .v { color: var(--accent); }
+
+/* --- スマホ ------------------------------------------------------------ */
+
+@media (max-width: 520px) {
+  body { font-size: 15px; }
+  .wrap { padding: 0 10px 56px; }
+  .panel { padding: 14px; }
+  .tabs button { padding: 8px 10px; font-size: 13px; }
+  .title h1 { font-size: 15px; }
+  .ctrl label { grid-template-columns: 1fr; gap: 4px; }
+  .ctrl .v { text-align: left; }
+  .steps li { flex-direction: column; gap: 2px; }
+}
