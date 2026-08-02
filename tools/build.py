@@ -292,8 +292,22 @@ def main():
             print('  ' + u, file=sys.stderr)
         return 1
 
+    # GitHub Pages 用に docs/ へも同じものを置く。
+    #
+    # Pages が公開フォルダとして選べるのは「/(root)」か「/docs」の2つだけで、
+    # /dist は選択肢に出てこない（実際に設定画面で確認済み）。
+    # dist/ を残しているのは、ローカルでの配布物という位置づけを変えないため。
+    docs = os.path.join(ROOT, 'docs')
+    os.makedirs(docs, exist_ok=True)
+    for name in os.listdir(DIST):
+        src_path = os.path.join(DIST, name)
+        if os.path.isfile(src_path):
+            with open(src_path, 'rb') as rf, open(os.path.join(docs, name), 'wb') as wf:
+                wf.write(rf.read())
+
     size_kb = os.path.getsize(out_html) / 1024
     print(f'ビルド完了: dist/index.html ＋ dist/ap_drill.html  ({size_kb:.0f} KB, {len(collect(ENTRY))} ファイルを結合)')
+    print(f'  docs/ にも複製（GitHub Pages 用）')
     print(f'  version: {version}')
     print('  外部参照: なし（オフラインで動作します）')
     print('')
