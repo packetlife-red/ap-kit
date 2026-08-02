@@ -1,5 +1,5 @@
 // 応用情報ドリル — オフライン用 Service Worker（ビルド生成物）
-const CACHE = 'ap-drill-20260802-2222';
+const CACHE = 'ap-drill-20260802-2237';
 // './' と './index.html' の両方を入れる。ホスティングによってどちらで参照されるか変わるため。
 const ASSETS = ['./', './index.html', './ap_drill.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 

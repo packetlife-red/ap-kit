@@ -2,11 +2,14 @@
 // 表示中のものだけ mount し、切り替え時に unmount する
 // （待ち行列は requestAnimationFrame を回し続けるため、放置すると電池を食う）。
 
+import { uptimeSim } from './uptime.js';
 import { queueSim } from './queue.js';
 import { subnetSim } from './subnet.js';
 import { pageSim } from './page.js';
 
-const SIMS = [queueSim, subnetSim, pageSim];
+// 稼働率を先頭に置く。「なぜその式なのか」が一番つまずきやすく、
+// かつ他の分野（並列＝余事象の考え方）にも効くため。
+const SIMS = [uptimeSim, queueSim, subnetSim, pageSim];
 
 export function mountSimulators() {
   const nav = document.querySelector('#sim-nav');
