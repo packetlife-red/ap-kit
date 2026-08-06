@@ -133,6 +133,161 @@ function pipe(dataMbit, speedMbps) {
     </div>`;
 }
 
+
+// ネットワーク部とホスト部の区切り、そして予約席の2つ。
+// 「なぜ2を引くのか」は文章だと流されるので、実際に2枠を潰して見せる。
+function hostBits(prefix) {
+  const hostBits = 32 - prefix;
+  const total = Math.pow(2, hostBits);
+  const usable = total - 2;
+
+  // 32ビットを8個ずつ4段に分けると詰まって見えるので、割合の帯で表す
+  const netPct = (prefix / 32) * 100;
+  return `
+    <div class="sbn">
+      <div class="sbn-bar">
+        <span class="sbn-net" style="width:${netPct}%">ネットワーク部</span>
+        <span class="sbn-host" style="width:${100 - netPct}%">ホスト部</span>
+      </div>
+      <div class="sbn-calc">
+        <div class="sbn-line" style="--i:0">
+          <span class="sbn-k">ホスト部のビット数</span>
+          <span class="sbn-v">32 − ${prefix} = ${hostBits}ビット</span>
+        </div>
+        <div class="sbn-line" style="--i:0">
+          <span class="sbn-k">表せる数</span>
+          <span class="sbn-v">2<sup>${hostBits}</sup> = ${total}</span>
+        </div>
+        <div class="sbn-line res" style="--i:1">
+          <span class="sbn-k">予約席</span>
+          <span class="sbn-v">
+            <span class="sbn-chip">全部0<br><small>ネットワーク</small></span>
+            <span class="sbn-chip">全部1<br><small>ブロードキャスト</small></span>
+          </span>
+        </div>
+        <div class="sbn-line sum" style="--i:2">
+          <span class="sbn-k">使える台数</span>
+          <span class="sbn-v"><b>${total} − 2 = ${usable}台</b></span>
+        </div>
+      </div>
+    </div>`;
+}
+
+
+// 加重平均を「100回のうち何回か」で見せる。
+// 式（h×Tc + (1-h)×Tm）を先に出すと手が止まるので、まず点を数えさせる。
+function cacheMix(hitPct, tc, tm) {
+  const hits = hitPct;
+  const misses = 100 - hits;
+  const hitTotal = hits * tc;
+  const missTotal = misses * tm;
+  const avg = (hitTotal + missTotal) / 100;
+
+  // 「100回のうち何回か」を1本の帯で見せる。
+  // 100個のマス目でも試したが、最終行の個数が少ないとその行だけセルが広がり、
+  // CSSで揃えるのに手こずった。帯なら1本なので崩れようがない。
+  return `
+    <div class="cachemix">
+      <div class="cm-head">100回アクセスしたら…</div>
+      <div class="cm-band">
+        <span class="cm-hit" style="width:${hits}%">${hits}回</span>
+        <span class="cm-miss" style="width:${misses}%">${misses}回</span>
+      </div>
+      <div class="cm-legend">
+        <span><i class="cm-sw cm-sw-hit"></i>キャッシュで済んだ（${tc}ナノ秒）</span>
+        <span><i class="cm-sw cm-sw-miss"></i>主記憶まで行った（${tm}ナノ秒）</span>
+      </div>
+      <div class="cm-calc">
+        <div class="cm-line" style="--i:0">
+          <span class="cm-k">当たり</span>
+          <span class="cm-v">${hits} × ${tc} = ${hitTotal.toLocaleString('ja-JP')}</span>
+        </div>
+        <div class="cm-line" style="--i:1">
+          <span class="cm-k">外れ</span>
+          <span class="cm-v">${misses} × ${tm} = ${missTotal.toLocaleString('ja-JP')}</span>
+        </div>
+        <div class="cm-line sum" style="--i:2">
+          <span class="cm-k">100回の平均</span>
+          <span class="cm-v"><b>${(hitTotal + missTotal).toLocaleString('ja-JP')} ÷ 100 = ${avg}ナノ秒</b></span>
+        </div>
+      </div>
+    </div>`;
+}
+
+
+// 利用率と待ち時間の関係。
+// 「なだらかに増えるのではなく、あるところから跳ね上がる」を棒の高さで見せる。
+// 数式の ρ/(1−ρ) を先に出しても意味が入らないので、まず形を見せる。
+function queueRho(ts) {
+  const points = [0.1, 0.3, 0.5, 0.7, 0.8, 0.9, 0.95];
+  const waits = points.map((r) => (ts * r) / (1 - r));
+  const max = Math.max(...waits);
+
+  const bars = points
+    .map((r, i) => {
+      const w = waits[i];
+      const h = Math.max(4, Math.round((w / max) * 100));
+      // 0.9以上は「跳ね上がった」ことが分かるよう色を変える
+      const hot = r >= 0.9 ? ' hot' : '';
+      return `
+        <div class="qr-col${hot}" style="--i:${i};--h:${h}%">
+          <div class="qr-wait">${Math.round(w)}</div>
+          <div class="qr-bar"><span></span></div>
+          <div class="qr-rho">${r}</div>
+        </div>`;
+    })
+    .join('');
+
+  return `
+    <div class="queuerho">
+      <div class="qr-head">サービス時間 ${ts}秒 のときの<b>待ち時間（秒）</b></div>
+      <div class="qr-chart">${bars}</div>
+      <div class="qr-foot">↑ 利用率 ρ（混み具合）</div>
+      <div class="qr-note">
+        0.5 → 0.8 では ${Math.round(waits[2])}秒 → ${Math.round(waits[4])}秒。
+        <b>0.8 → 0.95 では ${Math.round(waits[4])}秒 → ${Math.round(waits[6])}秒。</b>
+        同じ「0.15の増加」でも、伸び方がまるで違う。
+      </div>
+    </div>`;
+}
+
+
+// 損益分岐点。売上が伸びるにつれて、固定費の「穴」が埋まっていく様子。
+// 交点を境に赤字→黒字に変わることを、色で分かるようにする。
+function breakEven(fixed, marginRate) {
+  const bep = fixed / marginRate;
+  // 損益分岐点の手前・ちょうど・その先、の3点を並べる
+  const points = [bep * 0.5, bep, bep * 1.5];
+  const rows = points
+    .map((sales, i) => {
+      const margin = sales * marginRate; // 固定費に充てられる額
+      const profit = margin - fixed;
+      const fillPct = Math.min(100, (margin / fixed) * 100);
+      const state = profit < 0 ? 'ng' : profit > 0 ? 'ok' : 'even';
+      const label = profit < 0 ? '赤字' : profit > 0 ? '黒字' : 'ちょうど0';
+      return `
+        <div class="be-row" style="--i:${i}">
+          <div class="be-sales">売上 ${Math.round(sales / 10000).toLocaleString('ja-JP')}万</div>
+          <div class="be-track">
+            <span class="be-fill ${state}" style="width:${fillPct}%"></span>
+            <span class="be-goal">固定費 ${Math.round(fixed / 10000).toLocaleString('ja-JP')}万</span>
+          </div>
+          <div class="be-state ${state}">${label}</div>
+        </div>`;
+    })
+    .join('');
+
+  return `
+    <div class="breakeven">
+      <div class="be-head">売上の<b>${Math.round(marginRate * 100)}%</b>が固定費を埋めていく</div>
+      ${rows}
+      <div class="be-note">
+        ちょうど埋まる売上が <b>${Math.round(bep / 10000).toLocaleString('ja-JP')}万円</b>
+        ＝ 損益分岐点。ここを超えたぶんが利益になる。
+      </div>
+    </div>`;
+}
+
 // ---------------------------------------------------------------------
 // 登録表
 // ---------------------------------------------------------------------
@@ -255,6 +410,18 @@ const VISUALS = {
     ladder([1, 2, 4, 8, 16, 32, 64, 128], { note: '左へ1桁ごとに2倍' }),
   'bits-1011': () => bitRow('1011', { sum: true }),
   'bits-weights': () => bitRow('00000000'),
+
+  // --- 損益分岐点 ---
+  'breakeven': () => breakEven(3000000, 0.6),
+
+  // --- 待ち行列 ---
+  'queue-rho': () => queueRho(2),
+
+  // --- キャッシュ ---
+  'cache-mix': () => cacheMix(90, 10, 100),
+
+  // --- サブネット ---
+  'hostbits': () => hostBits(24),
 
   // --- 伝送時間 ---
   'byte-bit': () => byteBit(),

@@ -1143,6 +1143,275 @@ button.btn.subtle:hover { color: var(--text); }
   animation-delay: calc(var(--i) * 0.14s);
 }
 
+/* --- 損益分岐点（breakeven） --------------------------------------------- */
+
+.breakeven { display: grid; gap: 10px; }
+
+.be-head, .be-note {
+  font-size: 12.5px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.7;
+}
+.be-head b { color: var(--accent); }
+.be-note b { color: var(--ok); }
+
+.be-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  animation: lv-rise 0.42s ease-out both;
+  animation-delay: calc(var(--i) * 0.2s);
+}
+
+.be-sales {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.be-track {
+  position: relative;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px dashed var(--line);
+  overflow: hidden;
+}
+
+.be-fill {
+  display: block;
+  height: 100%;
+  transform-origin: left;
+  animation: lv-stretch 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(0.1s + var(--i) * 0.2s);
+}
+
+.be-fill.ng { background: var(--ng); }
+.be-fill.even { background: var(--warn); }
+.be-fill.ok { background: var(--ok); }
+
+.be-goal {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  color: var(--text);
+  pointer-events: none;
+  text-shadow: 0 1px 2px var(--panel);
+}
+
+.be-state {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.be-state.ng { color: var(--ng); }
+.be-state.even { color: var(--warn); }
+.be-state.ok { color: var(--ok); }
+
+/* --- 待ち行列の跳ね上がり（queue-rho） ------------------------------------ */
+
+.queuerho { display: grid; gap: 10px; }
+
+.qr-head, .qr-foot {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+.qr-head b { color: var(--text); }
+
+.qr-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  height: 150px;
+}
+
+.qr-col { display: grid; justify-items: center; gap: 3px; align-content: end; flex: 1; }
+
+.qr-wait {
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.qr-col.hot .qr-wait { color: var(--ng); }
+
+.qr-bar { width: 100%; max-width: 34px; height: 110px; display: flex; align-items: flex-end; }
+
+.qr-bar > span {
+  display: block;
+  width: 100%;
+  height: var(--h);
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, var(--accent), var(--accent-weak));
+  transform-origin: bottom;
+  animation: lv-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 0.1s);
+}
+
+/* 0.9以上は「跳ね上がった」ことが色でも分かるようにする */
+.qr-col.hot .qr-bar > span {
+  background: linear-gradient(180deg, var(--ng), var(--ng-weak));
+}
+
+.qr-rho {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.qr-col.hot .qr-rho { color: var(--ng); font-weight: 700; }
+
+.qr-note {
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--muted);
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 10px 12px;
+  animation: lv-rise 0.4s ease-out 0.8s both;
+}
+.qr-note b { color: var(--ng); }
+
+/* --- キャッシュの当たり外れ（cache-mix） --------------------------------- */
+
+.cachemix { display: grid; gap: 12px; }
+
+.cm-head { font-size: 12.5px; color: var(--muted); text-align: center; }
+
+.cm-band {
+  display: flex;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cm-band > span {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  transform-origin: left;
+  animation: lv-stretch 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.cm-hit { background: var(--ok); }
+.cm-miss { background: var(--ng); animation-delay: 0.2s !important; }
+
+.cm-legend {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cm-legend > span { display: inline-flex; align-items: center; }
+
+/* クラス名は cm- で始める。
+   最初 .sw / .miss という汎用名を使ったところ、成績タブの「間違えた問題」
+   （.miss）のスタイルが当たって、凡例の色見本が 33x26px に膨らんだ。 */
+.cm-sw {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 2px;
+  margin-right: 5px;
+}
+.cm-sw-hit { background: var(--ok); }
+.cm-sw-miss { background: var(--ng); }
+
+.cm-calc { display: grid; gap: 7px; }
+
+.cm-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  animation: lv-rise 0.4s ease-out both;
+  animation-delay: calc(0.5s + var(--i) * 0.16s);
+}
+
+.cm-k { color: var(--muted); font-size: 12.5px; }
+.cm-line.sum { border-top: 1px solid var(--line); padding-top: 8px; }
+.cm-line.sum b { color: var(--ok); font-size: 15px; }
+
+/* --- サブネットのホスト部（hostbits） ------------------------------------ */
+
+.sbn { display: grid; gap: 14px; }
+
+.sbn-bar {
+  display: flex;
+  height: 38px;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sbn-bar > span {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 0 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  transform-origin: left;
+  animation: lv-stretch 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sbn-net { background: var(--accent); color: #fff; }
+.sbn-host { background: var(--ok); color: #fff; animation-delay: 0.18s !important; }
+
+.sbn-calc { display: grid; gap: 8px; }
+
+.sbn-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  font-size: 14px;
+  animation: lv-rise 0.4s ease-out both;
+  animation-delay: calc(0.35s + var(--i) * 0.18s);
+}
+
+.sbn-k { color: var(--muted); font-size: 12.5px; flex: 0 0 auto; }
+.sbn-v { font-variant-numeric: tabular-nums; text-align: right; }
+.sbn-v sup { font-size: 0.7em; }
+
+.sbn-line.res .sbn-v { display: flex; gap: 6px; }
+
+.sbn-chip {
+  background: var(--ng-weak);
+  border: 1px solid var(--ng);
+  color: var(--ng);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.sbn-chip small { font-weight: 400; font-size: 9.5px; opacity: 0.85; }
+
+.sbn-line.sum {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.sbn-line.sum b { font-size: 17px; color: var(--ok); }
+
 /* --- 触れる2進数（bits-play） --------------------------------------------
    見るだけの図と違い、押せることが見た目で分からないと誰も触らない。
    影と拡大で「ボタンである」ことを示し、押した瞬間に色が変わるようにする。 */
