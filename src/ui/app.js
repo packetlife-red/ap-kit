@@ -253,8 +253,22 @@ function renderExplain(blocks) {
 // 解説中の数値表示。桁が多いときだけ丸める（元の値を壊さない範囲で）。
 function fmtStepValue(v) {
   if (typeof v !== 'number') return String(v);
+  if (!Number.isFinite(v)) return String(v);
   if (Number.isInteger(v)) return v.toLocaleString('ja-JP');
-  return String(Math.round(v * 10000) / 10000);
+
+  // 極端に小さい値をそのまま String() に渡すと "5e-7" になる。
+  // 初学者にはこの表記自体が読めないので、必ず小数で書き下す。
+  // （ページフォールト率の解説で実際に 5e-7 が出ていた）
+  const abs = Math.abs(v);
+  if (abs < 0.01) {
+    // 有効数字が消えない桁数まで伸ばす。toFixed は指数表記にならない
+    const digits = Math.min(12, Math.ceil(-Math.log10(abs)) + 2);
+    return v.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+  }
+
+  // 4桁で丸めたうえで、桁区切りを入れる（12345.6789 → 12,345.6789）
+  const r = Math.round(v * 10000) / 10000;
+  return r.toLocaleString('ja-JP', { maximumFractionDigits: 4 });
 }
 
 // --- 成績 ---------------------------------------------------------------

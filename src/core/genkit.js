@@ -77,9 +77,24 @@ export function explain(kind, title, body) {
 export function fmtNum(x, digits = 2) {
   if (!Number.isFinite(x)) return String(x);
   const r = round(x, digits);
+
+  // 5桁以上には桁区切りを入れる。
+  // 12500 と 125000 は、区切りが無いと桁を数えないと見分けられない。
+  // （選択肢の比較で「10000MIPS / 12500MIPS」が並ぶ実例があった）
+  //
+  // 4桁までは入れない。2進数・年・小さな個数など、区切ると
+  // かえって不自然になるものがこの範囲に集中するため。
+  const sep = (n) =>
+    Math.abs(n) >= 10000 ? n.toLocaleString('ja-JP', { maximumFractionDigits: 20 }) : String(n);
+
   // 整数なら小数点を出さない（「4」を「4.00」と書くと読みにくい）
-  if (Number.isInteger(r)) return String(r);
-  return r.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+  if (Number.isInteger(r)) return sep(r);
+
+  const fixed = r.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+  // 整数部だけ区切り、小数部はそのまま残す
+  const [ip, fp] = fixed.split('.');
+  const ipNum = Number(ip);
+  return fp ? `${sep(ipNum)}.${fp}` : sep(ipNum);
 }
 
 export function fmtPct(x, digits = 1) {

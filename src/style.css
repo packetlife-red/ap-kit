@@ -733,6 +733,409 @@ button.btn.subtle:hover { color: var(--text); }
   overflow-x: auto;
 }
 
+
+/* =======================================================================
+   レッスンの動き（アニメーション）
+   =======================================================================
+
+   「画面がずっと同じで、考えるのにも同じ内容に見えて頭に入りづらい」
+   というフィードバックへの対応。狙いは装飾ではなく、
+
+     ① 画面が切り替わったことを体で分からせる（＝別の話に入った合図）
+     ② 図が順番に組み上がることで、読む順番を目で誘導する
+
+   の2点。派手さより「話の区切りが分かる」ことを優先している。
+   動きが苦手な人のために、末尾で prefers-reduced-motion を必ず切っている。
+   ==================================================================== */
+
+/* 画面まるごとの入場。下から浮かせて、ほんの少しだけ拡大する */
+@keyframes lv-enter {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+.enter { animation: lv-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* 中身は一拍おいて出す（見出し → 図 → 本文 の順に視線を運ぶ） */
+@keyframes lv-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.read-page h3   { animation: lv-rise 0.4s ease-out 0.06s both; }
+.read-page .lv  { animation: lv-rise 0.4s ease-out 0.14s both; }
+.read-page .read-body { animation: lv-rise 0.4s ease-out 0.22s both; }
+
+/* --- ページごとの色みを変える --------------------------------------------
+   同じ見出しスタイルが4ページ続くと「さっきと同じ画面」に見えてしまう。
+   ページ番号で見出しの帯色を変え、進んだことを一目で分かるようにする。 */
+
+.read-page h3 {
+  padding-left: 12px;
+  border-left: 4px solid var(--accent);
+}
+
+.read-page[data-page="1"] h3 { border-left-color: #7a5cd0; }
+.read-page[data-page="2"] h3 { border-left-color: #1f8a52; }
+.read-page[data-page="3"] h3 { border-left-color: #b8770a; }
+
+/* --- 進み具合の点 -------------------------------------------------------- */
+
+.read-dots, .ws-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.rd {
+  width: 22px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+  transition: background-color 0.35s ease, width 0.35s ease;
+}
+
+.rd.done { background: var(--ok); }
+.rd.now  { background: var(--accent); width: 34px; }
+
+.rd-num { font-size: 12px; color: var(--muted); margin-left: 4px; }
+.ws-count b { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+/* =======================================================================
+   図（learn/visuals.js）
+   ==================================================================== */
+
+.lv {
+  margin: 16px 0 18px;
+  padding: 18px 14px;
+  background: var(--panel-2);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+/* --- 電球（スイッチは2状態しかない） ------------------------------------ */
+
+.lamp-row { display: flex; gap: 12px; justify-content: center; }
+
+.lamp {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  animation: lv-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 0.09s);
+}
+
+@keyframes lv-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.8); }
+  to   { opacity: 1; transform: none; }
+}
+
+.lamp-bulb {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--panel);
+}
+
+/* 点いている球はゆっくり明滅させる。ここだけ動き続けるので視線が集まる */
+.lamp.on .lamp-bulb {
+  background: var(--warn);
+  border-color: var(--warn);
+  box-shadow: 0 0 12px var(--warn);
+  animation: lv-glow 2.2s ease-in-out infinite;
+}
+
+@keyframes lv-glow {
+  0%, 100% { box-shadow: 0 0 8px var(--warn); }
+  50%      { box-shadow: 0 0 18px var(--warn); }
+}
+
+.lamp-cap { font-size: 11px; color: var(--muted); }
+.lamp-num { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lamp.on .lamp-num { color: var(--warn); }
+
+/* --- 10進数の位取り分解 -------------------------------------------------- */
+
+.dec-break { display: grid; gap: 6px; justify-content: center; }
+
+.dec-row {
+  display: grid;
+  grid-template-columns: 1.6em 1.2em 3.2em 1.2em 3.4em;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  animation: lv-slide 0.42s ease-out both;
+  animation-delay: calc(var(--i) * 0.16s);
+}
+
+@keyframes lv-slide {
+  from { opacity: 0; transform: translateX(-14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.dec-d { font-weight: 700; color: var(--accent); text-align: right; }
+.dec-x, .dec-eq { color: var(--muted); text-align: center; font-size: 13px; }
+.dec-w { color: var(--muted); text-align: right; }
+.dec-v { font-weight: 700; text-align: right; }
+
+.dec-sum {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  animation: lv-slide 0.42s ease-out both;
+  animation-delay: calc(var(--i) * 0.16s);
+}
+
+/* --- 2倍ずつ伸びる階段 ---------------------------------------------------- */
+
+.ladder {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lad { display: grid; justify-items: center; gap: 5px; align-content: end; }
+
+.lad-bar {
+  width: 26px;
+  height: 100px;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* 棒が下から伸びる。2倍ずつ増えるのを「伸びる速さ」で見せる */
+.lad-bar > span {
+  display: block;
+  width: 100%;
+  height: var(--h);
+  border-radius: 5px 5px 0 0;
+  background: linear-gradient(180deg, var(--accent), var(--accent-weak));
+  transform-origin: bottom;
+  animation: lv-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 0.1s);
+}
+
+@keyframes lv-grow {
+  from { transform: scaleY(0); opacity: 0.3; }
+  to   { transform: scaleY(1); opacity: 1; }
+}
+
+.lad-v { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* 注記は棒の上に重ねない。128の棒が天井まで伸びるので必ずぶつかる（実際に重なった） */
+.lad-note {
+  flex-basis: 100%;
+  text-align: center;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* --- ビット列（2進数の本体） ---------------------------------------------- */
+
+.bit-row { display: flex; gap: 8px; justify-content: center; }
+
+.bit {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  animation: lv-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 0.1s);
+}
+
+.bit-w {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.bit-b {
+  width: 38px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 1が立っている桁だけを強調する。ここが「足す桁」だと一目で分かるように */
+.bit.on .bit-b {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.bit.on .bit-w { color: var(--accent); font-weight: 700; }
+.bit.off .bit-b { opacity: 0.55; }
+
+/* 足し算の内訳は、箱が出そろってから遅れて出す */
+.bit-plus {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ok);
+  font-variant-numeric: tabular-nums;
+  animation: lv-rise 0.36s ease-out both;
+  animation-delay: calc(0.5s + var(--i) * 0.1s);
+}
+
+/* --- バイトとビット ------------------------------------------------------- */
+
+.bytebit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.bb-side { display: grid; justify-items: center; gap: 6px; }
+.bb-label { font-size: 11.5px; color: var(--muted); }
+.bb-eq { font-size: 20px; color: var(--muted); font-weight: 700; }
+
+.bb-box {
+  height: 46px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-box.byte {
+  width: 46px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+  animation: lv-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.bb-box.bits { gap: 3px; }
+
+/* 8個のビットが1つずつ現れる。「1個ではなく8個ぶん」を数で見せる */
+.bb-bit {
+  width: 13px;
+  height: 46px;
+  border-radius: 3px;
+  background: var(--ok);
+  animation: lv-grow 0.34s ease-out both;
+  animation-delay: calc(0.25s + var(--i) * 0.07s);
+}
+
+/* --- 伝送の帯 ------------------------------------------------------------ */
+
+.pipe { display: grid; gap: 8px; }
+
+.pp-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-label { color: var(--muted); }
+
+.pp-track {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* 1秒ぶんの塊が左から順に積まれる＝時間が経つ感じを出す */
+.pp-chunk {
+  flex: 1;
+  height: 26px;
+  border-radius: 5px;
+  background: var(--accent);
+  animation: lv-grow 0.36s ease-out both;
+  animation-delay: calc(var(--i) * 0.16s);
+}
+
+.pp-foot {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  animation: lv-rise 0.4s ease-out 0.8s both;
+}
+
+/* --- 直列・並列のつなぎ方 -------------------------------------------------- */
+
+.chain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ch-node {
+  padding: 12px 18px;
+  border-radius: 8px;
+  border: 2px solid var(--accent);
+  background: var(--panel);
+  font-size: 14px;
+  font-weight: 600;
+  animation: lv-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 0.14s);
+}
+
+.ch-link {
+  width: 40px;
+  height: 3px;
+  background: var(--accent);
+  transform-origin: left;
+  animation: lv-stretch 0.36s ease-out both;
+  animation-delay: calc(var(--i) * 0.14s);
+}
+
+@keyframes lv-stretch {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.chain.parallel .ch-branch { display: grid; gap: 10px; }
+
+.ch-cap {
+  flex-basis: 100%;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--muted);
+  animation: lv-rise 0.4s ease-out both;
+  animation-delay: calc(var(--i) * 0.14s);
+}
+
+/* =======================================================================
+   動きを減らす設定への配慮。
+   OS側で「視差効果を減らす」を有効にしている人には、動きを全部止める。
+   （乗り物酔い・前庭障害のある人には、動く画面が実害になるため）
+   ==================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .enter,
+  .read-page h3,
+  .read-page .lv,
+  .read-page .read-body,
+  .lamp, .dec-row, .dec-sum, .bit, .bit-plus,
+  .lad-bar > span, .bb-box.byte, .bb-bit,
+  .pp-chunk, .pp-foot, .ch-node, .ch-link, .ch-cap {
+    animation: none !important;
+  }
+  .lamp.on .lamp-bulb { animation: none !important; }
+  .rd { transition: none !important; }
+}
+
 /* --- スマホ ------------------------------------------------------------ */
 
 @media (max-width: 520px) {

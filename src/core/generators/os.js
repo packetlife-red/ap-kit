@@ -191,7 +191,12 @@ function genFaultRate(rng) {
     steps: [
       step('目標の実効時間', `${memNs} × ${fmtNum(targetRatio, 1)}`, round(targetNs, 2), 'ナノ秒'),
       step('式を立てる', `${fmtInt(targetNs)} = (1−f)×${memNs} + f×${fmtInt(faultNs)}`, null),
+      // 答えは 0.0000005 のような極端に小さい率。
+      // 値は検証（最終ステップ＝正解）のために持たせたまま、読みやすさは
+      // 次の「率の意味」ステップで補う。UI側の fmtStepValue が指数表記を
+      // 展開するので、ここでは "5e-7" にはならない。
       step('fについて解く', `(${fmtInt(targetNs)} − ${memNs}) / (${fmtInt(faultNs)} − ${memNs})`, answer),
+      step('この率の意味', `${fmtSmallRate(answer)}`, null),
     ],
     note:
       `許容できるフォールト率は${fmtNum(answer * 100, 6)}%。` +

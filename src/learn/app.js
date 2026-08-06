@@ -9,6 +9,7 @@
 // 記録するのは「どのレッスンをどこまで進んだか」だけ。
 
 import { LESSONS, getLesson } from './lessons.js';
+import { visualHtml } from './visuals.js';
 import { store } from '../core/store.js';
 
 // ui/app.js と同名にすると単一スコープで衝突するため、learn層は接頭辞を付ける
@@ -61,6 +62,15 @@ const view = {
 
 function host() {
   return $l('#learn-host');
+}
+
+// 「3 / 5」という数字より、点が埋まっていくほうが進み具合が体感しやすい。
+function dotsHtml(total, at) {
+  const dots = Array.from({ length: total }, (_, i) => {
+    const cls = i < at ? 'done' : i === at ? 'now' : '';
+    return `<span class="rd ${cls}"></span>`;
+  }).join('');
+  return `${dots}<span class="rd-num">${at + 1} / ${total}</span>`;
 }
 
 // =======================================================================
@@ -174,10 +184,13 @@ function renderRead() {
   const pageData = l.read[view.page];
   const last = view.page === total - 1;
 
+  // ページ番号を data 属性で持たせ、ページごとに見出しの色みを変える。
+  // 「さっきと同じ画面に見える」対策で、番号が変われば必ず見た目が変わる。
   host().innerHTML = frame(`
-    <div class="read-page">
-      <div class="read-count">${view.page + 1} / ${total}</div>
+    <div class="read-page enter" data-page="${view.page % 4}">
+      <div class="read-dots">${dotsHtml(total, view.page)}</div>
       <h3>${lesc(pageData.h)}</h3>
+      ${pageData.v ? visualHtml(pageData.v) : ''}
       <div class="read-body">${md(pageData.b)}</div>
     </div>
     <div class="row" style="margin-top:18px">
@@ -214,7 +227,7 @@ function renderWalk() {
 
   if (finished) {
     host().innerHTML = frame(`
-      <div class="walk-wrap">
+      <div class="walk-wrap enter">
         <div class="walk-q">${md(w.question)}</div>
         <div class="ex trap" style="margin-top:16px">
           <h4><span class="ex-icon" aria-hidden="true">✓</span>まとめ</h4>
@@ -237,11 +250,11 @@ function renderWalk() {
   }
 
   host().innerHTML = frame(`
-    <div class="walk-wrap">
+    <div class="walk-wrap enter">
       ${view.walkStep === 0 ? `<div class="walk-intro">${md(w.intro)}</div>` : ''}
       <div class="walk-q">${md(w.question)}</div>
-      <div class="walk-step">
-        <div class="ws-count">ステップ ${view.walkStep + 1} / ${total}</div>
+      <div class="walk-step enter" data-step="${view.walkStep}">
+        <div class="ws-count"><b>ステップ</b>${dotsHtml(total, view.walkStep)}</div>
         <div class="ws-ask">${md(s.ask)}</div>
         <div class="choices" id="walk-choices"></div>
         <div class="row" style="margin-top:10px">
@@ -301,7 +314,7 @@ function renderTry() {
   const t = l.try[view.tryIndex];
 
   host().innerHTML = frame(`
-    <div class="try-wrap">
+    <div class="try-wrap enter">
       <div class="try-count">${view.tryIndex + 1} 問目 / ${total}</div>
       <div class="try-q">${md(t.q)}</div>
       <div class="try-hint"><b>ヒント</b><br>${md(t.hint)}</div>
@@ -388,7 +401,7 @@ function renderDone() {
   const nextLesson = LESSONS[idx + 1];
 
   host().innerHTML = frame(`
-    <div class="done-wrap">
+    <div class="done-wrap enter">
       <div class="done-mark">修了</div>
       <div class="done-body">${md(l.done)}</div>
       <div class="done-actions">

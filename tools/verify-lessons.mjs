@@ -6,6 +6,9 @@
 // （実際、当初 2回目のヒントに after を流用していて答えが漏れていた）
 
 import { LESSONS } from '../src/learn/lessons.js';
+import { visualHtml, visualNames } from '../src/learn/visuals.js';
+
+const VISUAL_NAMES = visualNames();
 
 let failures = 0;
 let checks = 0;
@@ -37,6 +40,20 @@ assert(LESSONS.length > 0, 'all', 'レッスンが1つもない');
 
 const seenIds = new Set();
 
+// --- 図そのものの健全性 ---
+// 登録済みの図が、実際にHTMLを返すか。空を返すと本文だけになり、
+// 「図を入れたつもりが出ていない」に気づけない。
+for (const name of VISUAL_NAMES) {
+  const html = visualHtml(name);
+  const vw = `visual:${name}`;
+  assert(typeof html === 'string' && html.length > 30, vw, 'HTMLが空または短すぎる');
+  assert(!/undefined|NaN|\[object/.test(html), vw, 'HTMLに undefined / NaN が混ざっている');
+  // タグの開閉が釣り合っているか（雑だが、閉じ忘れは検出できる）
+  const open = (html.match(/<div/g) || []).length;
+  const close = (html.match(/<\/div>/g) || []).length;
+  assert(open === close, vw, `divの開閉が合わない（開${open} / 閉${close}）`);
+}
+
 for (const l of LESSONS) {
   const w = `lesson:${l.id}`;
   const before = failures;
@@ -59,6 +76,17 @@ for (const l of LESSONS) {
     assert(textSane(p.b), pw, '本文がない');
     assert(p.b.length >= 40, pw, `本文が短すぎる（${p.b.length}字）`);
     assert(starsBalanced(p.b), pw, '** が閉じていない');
+
+    // 図の名前が visuals.js に実在するか。
+    // visualHtml() は未知の名前を静かに無視する（本文だけは必ず読める）作りなので、
+    // 名前をタイプミスしても画面上は「図が出ないだけ」で気づけない。ここで止める。
+    if (p.v !== undefined) {
+      assert(
+        VISUAL_NAMES.indexOf(p.v) >= 0,
+        pw,
+        `図 '${p.v}' が visuals.js に定義されていない`
+      );
+    }
   });
 
   // --- ② 一緒に解く ---

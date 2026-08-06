@@ -744,6 +744,409 @@ button.btn.subtle:hover { color: var(--text); }
   overflow-x: auto;
 }
 
+
+/* =======================================================================
+   レッスンの動き（アニメーション）
+   =======================================================================
+
+   「画面がずっと同じで、考えるのにも同じ内容に見えて頭に入りづらい」
+   というフィードバックへの対応。狙いは装飾ではなく、
+
+     ① 画面が切り替わったことを体で分からせる（＝別の話に入った合図）
+     ② 図が順番に組み上がることで、読む順番を目で誘導する
+
+   の2点。派手さより「話の区切りが分かる」ことを優先している。
+   動きが苦手な人のために、末尾で prefers-reduced-motion を必ず切っている。
+   ==================================================================== */
+
+/* 画面まるごとの入場。下から浮かせて、ほんの少しだけ拡大する */
+@keyframes lv-enter {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+.enter { animation: lv-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* 中身は一拍おいて出す（見出し → 図 → 本文 の順に視線を運ぶ） */
+@keyframes lv-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.read-page h3   { animation: lv-rise 0.4s ease-out 0.06s both; }
+.read-page .lv  { animation: lv-rise 0.4s ease-out 0.14s both; }
+.read-page .read-body { animation: lv-rise 0.4s ease-out 0.22s both; }
+
+/* --- ページごとの色みを変える --------------------------------------------
+   同じ見出しスタイルが4ページ続くと「さっきと同じ画面」に見えてしまう。
+   ページ番号で見出しの帯色を変え、進んだことを一目で分かるようにする。 */
+
+.read-page h3 {
+  padding-left: 12px;
+  border-left: 4px solid var(--accent);
+}
+
+.read-page[data-page="1"] h3 { border-left-color: #7a5cd0; }
+.read-page[data-page="2"] h3 { border-left-color: #1f8a52; }
+.read-page[data-page="3"] h3 { border-left-color: #b8770a; }
+
+/* --- 進み具合の点 -------------------------------------------------------- */
+
+.read-dots, .ws-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.rd {
+  width: 22px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+  transition: background-color 0.35s ease, width 0.35s ease;
+}
+
+.rd.done { background: var(--ok); }
+.rd.now  { background: var(--accent); width: 34px; }
+
+.rd-num { font-size: 12px; color: var(--muted); margin-left: 4px; }
+.ws-count b { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+/* =======================================================================
+   図（learn/visuals.js）
+   ==================================================================== */
+
+.lv {
+  margin: 16px 0 18px;
+  padding: 18px 14px;
+  background: var(--panel-2);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+/* --- 電球（スイッチは2状態しかない） ------------------------------------ */
+
+.lamp-row { display: flex; gap: 12px; justify-content: center; }
+
+.lamp {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  animation: lv-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 0.09s);
+}
+
+@keyframes lv-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.8); }
+  to   { opacity: 1; transform: none; }
+}
+
+.lamp-bulb {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--panel);
+}
+
+/* 点いている球はゆっくり明滅させる。ここだけ動き続けるので視線が集まる */
+.lamp.on .lamp-bulb {
+  background: var(--warn);
+  border-color: var(--warn);
+  box-shadow: 0 0 12px var(--warn);
+  animation: lv-glow 2.2s ease-in-out infinite;
+}
+
+@keyframes lv-glow {
+  0%, 100% { box-shadow: 0 0 8px var(--warn); }
+  50%      { box-shadow: 0 0 18px var(--warn); }
+}
+
+.lamp-cap { font-size: 11px; color: var(--muted); }
+.lamp-num { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lamp.on .lamp-num { color: var(--warn); }
+
+/* --- 10進数の位取り分解 -------------------------------------------------- */
+
+.dec-break { display: grid; gap: 6px; justify-content: center; }
+
+.dec-row {
+  display: grid;
+  grid-template-columns: 1.6em 1.2em 3.2em 1.2em 3.4em;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  animation: lv-slide 0.42s ease-out both;
+  animation-delay: calc(var(--i) * 0.16s);
+}
+
+@keyframes lv-slide {
+  from { opacity: 0; transform: translateX(-14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.dec-d { font-weight: 700; color: var(--accent); text-align: right; }
+.dec-x, .dec-eq { color: var(--muted); text-align: center; font-size: 13px; }
+.dec-w { color: var(--muted); text-align: right; }
+.dec-v { font-weight: 700; text-align: right; }
+
+.dec-sum {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  animation: lv-slide 0.42s ease-out both;
+  animation-delay: calc(var(--i) * 0.16s);
+}
+
+/* --- 2倍ずつ伸びる階段 ---------------------------------------------------- */
+
+.ladder {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lad { display: grid; justify-items: center; gap: 5px; align-content: end; }
+
+.lad-bar {
+  width: 26px;
+  height: 100px;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* 棒が下から伸びる。2倍ずつ増えるのを「伸びる速さ」で見せる */
+.lad-bar > span {
+  display: block;
+  width: 100%;
+  height: var(--h);
+  border-radius: 5px 5px 0 0;
+  background: linear-gradient(180deg, var(--accent), var(--accent-weak));
+  transform-origin: bottom;
+  animation: lv-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 0.1s);
+}
+
+@keyframes lv-grow {
+  from { transform: scaleY(0); opacity: 0.3; }
+  to   { transform: scaleY(1); opacity: 1; }
+}
+
+.lad-v { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* 注記は棒の上に重ねない。128の棒が天井まで伸びるので必ずぶつかる（実際に重なった） */
+.lad-note {
+  flex-basis: 100%;
+  text-align: center;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* --- ビット列（2進数の本体） ---------------------------------------------- */
+
+.bit-row { display: flex; gap: 8px; justify-content: center; }
+
+.bit {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  animation: lv-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 0.1s);
+}
+
+.bit-w {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.bit-b {
+  width: 38px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 1が立っている桁だけを強調する。ここが「足す桁」だと一目で分かるように */
+.bit.on .bit-b {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.bit.on .bit-w { color: var(--accent); font-weight: 700; }
+.bit.off .bit-b { opacity: 0.55; }
+
+/* 足し算の内訳は、箱が出そろってから遅れて出す */
+.bit-plus {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ok);
+  font-variant-numeric: tabular-nums;
+  animation: lv-rise 0.36s ease-out both;
+  animation-delay: calc(0.5s + var(--i) * 0.1s);
+}
+
+/* --- バイトとビット ------------------------------------------------------- */
+
+.bytebit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.bb-side { display: grid; justify-items: center; gap: 6px; }
+.bb-label { font-size: 11.5px; color: var(--muted); }
+.bb-eq { font-size: 20px; color: var(--muted); font-weight: 700; }
+
+.bb-box {
+  height: 46px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-box.byte {
+  width: 46px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+  animation: lv-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.bb-box.bits { gap: 3px; }
+
+/* 8個のビットが1つずつ現れる。「1個ではなく8個ぶん」を数で見せる */
+.bb-bit {
+  width: 13px;
+  height: 46px;
+  border-radius: 3px;
+  background: var(--ok);
+  animation: lv-grow 0.34s ease-out both;
+  animation-delay: calc(0.25s + var(--i) * 0.07s);
+}
+
+/* --- 伝送の帯 ------------------------------------------------------------ */
+
+.pipe { display: grid; gap: 8px; }
+
+.pp-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-label { color: var(--muted); }
+
+.pp-track {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* 1秒ぶんの塊が左から順に積まれる＝時間が経つ感じを出す */
+.pp-chunk {
+  flex: 1;
+  height: 26px;
+  border-radius: 5px;
+  background: var(--accent);
+  animation: lv-grow 0.36s ease-out both;
+  animation-delay: calc(var(--i) * 0.16s);
+}
+
+.pp-foot {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  animation: lv-rise 0.4s ease-out 0.8s both;
+}
+
+/* --- 直列・並列のつなぎ方 -------------------------------------------------- */
+
+.chain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ch-node {
+  padding: 12px 18px;
+  border-radius: 8px;
+  border: 2px solid var(--accent);
+  background: var(--panel);
+  font-size: 14px;
+  font-weight: 600;
+  animation: lv-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 0.14s);
+}
+
+.ch-link {
+  width: 40px;
+  height: 3px;
+  background: var(--accent);
+  transform-origin: left;
+  animation: lv-stretch 0.36s ease-out both;
+  animation-delay: calc(var(--i) * 0.14s);
+}
+
+@keyframes lv-stretch {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.chain.parallel .ch-branch { display: grid; gap: 10px; }
+
+.ch-cap {
+  flex-basis: 100%;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--muted);
+  animation: lv-rise 0.4s ease-out both;
+  animation-delay: calc(var(--i) * 0.14s);
+}
+
+/* =======================================================================
+   動きを減らす設定への配慮。
+   OS側で「視差効果を減らす」を有効にしている人には、動きを全部止める。
+   （乗り物酔い・前庭障害のある人には、動く画面が実害になるため）
+   ==================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .enter,
+  .read-page h3,
+  .read-page .lv,
+  .read-page .read-body,
+  .lamp, .dec-row, .dec-sum, .bit, .bit-plus,
+  .lad-bar > span, .bb-box.byte, .bb-bit,
+  .pp-chunk, .pp-foot, .ch-node, .ch-link, .ch-cap {
+    animation: none !important;
+  }
+  .lamp.on .lamp-bulb { animation: none !important; }
+  .rd { transition: none !important; }
+}
+
 /* --- スマホ ------------------------------------------------------------ */
 
 @media (max-width: 520px) {
@@ -827,7 +1230,7 @@ button.btn.subtle:hover { color: var(--text); }
 
 <p class="muted" style="margin-top:28px;text-align:center;font-size:12px">
   出題は全問その場で自動生成しています（過去問の転載はありません）。<br>
-  build 20260802-2237（JST）
+  build 20260807-0009（JST）
 </p>
 
 </div>
@@ -981,9 +1384,24 @@ function explain(kind, title, body) {
 function fmtNum(x, digits = 2) {
   if (!Number.isFinite(x)) return String(x);
   const r = round(x, digits);
+
+  // 5桁以上には桁区切りを入れる。
+  // 12500 と 125000 は、区切りが無いと桁を数えないと見分けられない。
+  // （選択肢の比較で「10000MIPS / 12500MIPS」が並ぶ実例があった）
+  //
+  // 4桁までは入れない。2進数・年・小さな個数など、区切ると
+  // かえって不自然になるものがこの範囲に集中するため。
+  const sep = (n) =>
+    Math.abs(n) >= 10000 ? n.toLocaleString('ja-JP', { maximumFractionDigits: 20 }) : String(n);
+
   // 整数なら小数点を出さない（「4」を「4.00」と書くと読みにくい）
-  if (Number.isInteger(r)) return String(r);
-  return r.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+  if (Number.isInteger(r)) return sep(r);
+
+  const fixed = r.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+  // 整数部だけ区切り、小数部はそのまま残す
+  const [ip, fp] = fixed.split('.');
+  const ipNum = Number(ip);
+  return fp ? `${sep(ipNum)}.${fp}` : sep(ipNum);
 }
 
 function fmtPct(x, digits = 1) {
@@ -3356,7 +3774,12 @@ function genFaultRate(rng) {
     steps: [
       step('目標の実効時間', `${memNs} × ${fmtNum(targetRatio, 1)}`, round(targetNs, 2), 'ナノ秒'),
       step('式を立てる', `${fmtInt(targetNs)} = (1−f)×${memNs} + f×${fmtInt(faultNs)}`, null),
+      // 答えは 0.0000005 のような極端に小さい率。
+      // 値は検証（最終ステップ＝正解）のために持たせたまま、読みやすさは
+      // 次の「率の意味」ステップで補う。UI側の fmtStepValue が指数表記を
+      // 展開するので、ここでは "5e-7" にはならない。
       step('fについて解く', `(${fmtInt(targetNs)} − ${memNs}) / (${fmtInt(faultNs)} − ${memNs})`, answer),
+      step('この率の意味', `${fmtSmallRate(answer)}`, null),
     ],
     note:
       `許容できるフォールト率は${fmtNum(answer * 100, 6)}%。` +
@@ -4715,6 +5138,7 @@ const LESSONS = [
       },
       {
         h: '装置をつなぐと、稼働率は変わる',
+        v: 'chain-serial',
         b:
           'ここからが本題です。装置は普通、1台では動きません。' +
           '何台かつないでシステムになります。\n\n' +
@@ -4852,6 +5276,7 @@ const LESSONS = [
     read: [
       {
         h: 'コンピュータは0と1しか知らない',
+        v: 'lamp-switch',
         b:
           'コンピュータの中身は、突き詰めると **スイッチの集まり** です。' +
           'スイッチには「入っている」「切れている」の2つの状態しかありません。\n\n' +
@@ -4861,35 +5286,37 @@ const LESSONS = [
       },
       {
         h: 'ふだんの数え方（10進数）を思い出す',
+        v: 'dec-347',
         b:
           '私たちは0〜9の10種類を使います。9の次は桁が増えて10。\n\n' +
-          'たとえば **347** という数は、こう分解できます。\n\n' +
-          '　3 × 100　＝ 300\n' +
-          '　4 × 10　 ＝ 　40\n' +
-          '　7 × 1　　＝ 　 7\n' +
-          '　　　　　　合計 347\n\n' +
+          'たとえば **347** は、上の図のように分解できます。\n\n' +
           '桁が1つ左に行くたびに **10倍** になっていますね。1 → 10 → 100 → 1000。\n' +
           'これが「10進数」と呼ばれる理由です。',
       },
       {
         h: '2進数は、10倍が2倍になるだけ',
+        v: 'ladder-2x',
         b:
-          '2進数もまったく同じ仕組みで、**桁が左に行くと2倍**になります。\n\n' +
-          '　1 → 2 → 4 → 8 → 16 → 32 → 64 → 128\n\n' +
-          'この並びを覚えてしまうと、あとは足し算だけで解けます。\n\n' +
-          'たとえば 2進数の **1011** は、\n\n' +
-          '　1 × 8 ＝ 8\n' +
-          '　0 × 4 ＝ 0\n' +
-          '　1 × 2 ＝ 2\n' +
-          '　1 × 1 ＝ 1\n' +
-          '　　　　合計 **11**\n\n' +
-          '1が立っている桁の数字を足すだけ。それ以上のことはしていません。',
+          '2進数もまったく同じ仕組みで、**一番右の桁が1。そこから左へ行くたびに2倍**です。\n' +
+          '上の棒がそのまま桁の重みで、右端が1、左へ行くほど倍々に伸びていきます。\n\n' +
+          'よく「右から1・2・4・8」と教わりますが、**この覚え方は数を読む向きと逆**なので、' +
+          '慣れないうちは混乱します。\n\n' +
+          'おすすめは、**2進数の上に重みを書き添える**やり方です。\n\n' +
+          '　8　4　2　1　← 重み\n' +
+          '　1　0　1　1　← 2進数\n\n' +
+          'こう書けば、左から普通に読むだけで済みます。',
       },
       {
         h: 'この章で覚えること',
+        v: 'bits-1011',
         b:
-          '**1・2・4・8・16・32・64・128** の並び。これだけ覚えれば2進数は読めます。\n\n' +
-          '「1が立っているところを足す」——次のページで実際にやってみます。',
+          '上の図は 2進数の **1011**。重みが上に書き添えてあります。\n\n' +
+          '1が立っているのは 8・2・1 の桁なので、**8 + 2 + 1 = 11**。\n' +
+          '0の桁（4）は数えません。\n\n' +
+          '手順はいつも同じです。\n\n' +
+          '　① 2進数の上に、右端を1として倍々に重みを書く\n' +
+          '　② 1が立っている桁の重みだけを足す\n\n' +
+          '次のページから、実際に自分で読んでみます。',
       },
     ],
 
@@ -4898,10 +5325,16 @@ const LESSONS = [
       question: '2進数の **110** を、ふだんの数（10進数）に直すといくつか。',
       steps: [
         {
-          ask: 'まず、3桁ぶんの「桁の重み」を右から並べてください。正しいのはどれですか。',
-          choices: ['右から 1・2・4', '右から 1・10・100', '右から 3・2・1'],
+          ask: 'まず、3桁ぶんの「桁の重み」を、書いてある順（左から）に並べてください。正しいのはどれですか。',
+          choices: ['左から 4・2・1', '左から 100・10・1', '左から 1・2・4'],
           ok: 0,
-          why: '2進数は桁が左に行くと2倍。だから右から 1、2、4 になります。',
+          why:
+            '一番右の桁が 1 で、そこから左へ行くたびに2倍。\n' +
+            'なので3桁ぶんを左から書くと **4・2・1** です。\n\n' +
+            '　4　2　1　← 重み\n' +
+            '　1　1　0　← 2進数\n\n' +
+            '「右から1・2・4」と覚えると、実際に数を読む向きと逆になって混乱します。' +
+            '**数字の上に重みを書き添える**と考えるほうが早いです。',
         },
         {
           ask: '110 のうち、1が立っているのはどの桁ですか。',
@@ -4929,7 +5362,10 @@ const LESSONS = [
     try: [
       {
         q: '2進数の **101** を10進数にするといくつか。',
-        hint: '右から 1・2・4 の重み。1が立っているのは4の桁と1の桁です。',
+        hint:
+          '重みを数字の上に書き添えます。\n\n' +
+          '　4　2　1\n　1　0　1\n\n' +
+          '1が立っているのは、4の桁と1の桁です。',
         hint2: '立っている桁の重みを足すだけです。4 と 1 を足してください。',
         choices: ['5', '3', '101', '7'],
         ok: 0,
@@ -4940,7 +5376,10 @@ const LESSONS = [
         //（4桁の 1000 だと答えが「8」で、ヒントの「1・2・4・8」に含まれてしまう）
         // そのため、複数の桁を足させる形にしてある。
         q: '2進数の **1101** を10進数にするといくつか。',
-        hint: '4桁なので、重みは右から 1・2・4・8。1が立っている桁の重みを足します。',
+        hint:
+          '4桁なので、重みを上に書き添えるとこうなります。\n\n' +
+          '　8　4　2　1\n　1　1　0　1\n\n' +
+          '1が立っている桁の重みを足します。',
         hint2:
           '左から順に見ていきます。\n' +
           '　8の桁 → 1（足す）\n　4の桁 → 1（足す）\n　2の桁 → 0（足さない）\n　1の桁 → 1（足す）\n\n' +
@@ -4970,7 +5409,7 @@ const LESSONS = [
 
     done:
       '**2進数は、桁の重みを足すだけです。**\n\n' +
-      '・重みは右から 1・2・4・8・16・32・64・128\n' +
+      '・重みは一番右が1で、左へ行くたびに2倍（…128・64・32・16・8・4・2・1）\n' +
       '・2進数→10進数：1が立っている桁を足す\n' +
       '・10進数→2進数：大きい重みから引けるだけ引いていく\n\n' +
       'この考え方は、このあとサブネット（IPアドレス）でもそのまま使います。' +
@@ -4996,6 +5435,7 @@ const LESSONS = [
       },
       {
         h: 'ビットとバイト —— ここが最大の関門',
+        v: 'byte-bit',
         b:
           '同じデータ量なのに、2種類の単位が使われます。\n\n' +
           '**バイト（B）** … ファイルの大きさを表すときに使う。「この動画は 50 メガバイト」\n' +
@@ -5006,6 +5446,7 @@ const LESSONS = [
       },
       {
         h: 'なぜ光回線1Gbpsでも1秒で1GB送れないのか',
+        v: 'pipe-80-20',
         b:
           '「1ギガビット/秒」の回線なら、1ギガバイトのファイルが1秒で送れそうな気がします。\n\n' +
           'でも実際は **8秒** かかります。1ギガバイト＝8ギガビットだからです。\n\n' +
@@ -5115,6 +5556,192 @@ function getLesson(id) {
   return LESSONS.find((l) => l.id === id) || null;
 }
 
+// ===== src/learn/visuals.js ======================================
+// レッスン本文に差し込む「動く図」。
+//
+// 作った理由は、利用者からの
+//   「画面がずっと同じで、考えるのにも同じ内容に見えて頭に入りづらかった」
+// というフィードバック。文章は良くても、**紙芝居が1枚も動かない**のが問題だった。
+//
+// 方針は2つ。
+//   1. 図そのものが順番に組み上がる（一度に全部出さない）。読む速度に絵が付いてくる
+//   2. ページごとに絵が違う。「別の話に入った」ことが目で分かる
+//
+// レッスン側は `v: 'bits-101'` のように文字列で指定するだけにしてある。
+// 図の実装をレッスン本文（lessons.js）に持ち込まないため。
+
+// 図はすべて「箱を並べて、順番に光らせる」で表現する。
+// 追加のライブラリは使わない（外部依存ゼロの方針）。
+
+// ---------------------------------------------------------------------
+// 部品
+// ---------------------------------------------------------------------
+
+// 桁の重み（1・2・4・8…）を並べたビット列。
+// bits: '1011' のような文字列。weights を出すかどうかを opts で切り替える。
+function bitRow(bits, opts = {}) {
+  const arr = String(bits).split('');
+  const n = arr.length;
+  const cells = arr
+    .map((b, i) => {
+      const w = Math.pow(2, n - 1 - i); // 左の桁ほど重い
+      const on = b === '1';
+      // data-step は「何番目に光るか」。CSSのアニメーション遅延に使う。
+      return `
+        <div class="bit ${on ? 'on' : 'off'}" style="--i:${i}">
+          ${opts.weight === false ? '' : `<div class="bit-w">${w}</div>`}
+          <div class="bit-b">${b}</div>
+          ${opts.sum && on ? `<div class="bit-plus">+${w}</div>` : ''}
+        </div>`;
+    })
+    .join('');
+  return `<div class="bit-row${opts.sum ? ' with-sum' : ''}">${cells}</div>`;
+}
+
+// 電球のならび（スイッチが2状態しかない、の説明用）
+function lampRow(pattern) {
+  const cells = String(pattern)
+    .split('')
+    .map((b, i) => {
+      const on = b === '1';
+      return `
+        <div class="lamp ${on ? 'on' : 'off'}" style="--i:${i}">
+          <div class="lamp-bulb"></div>
+          <div class="lamp-cap">${on ? '入' : '切'}</div>
+          <div class="lamp-num">${b}</div>
+        </div>`;
+    })
+    .join('');
+  return `<div class="lamp-row">${cells}</div>`;
+}
+
+// 桁の重みが2倍ずつ伸びていく階段。
+function ladder(values, opts = {}) {
+  const max = Math.max(...values);
+  const cells = values
+    .map((v, i) => {
+      const h = Math.max(8, Math.round((v / max) * 100));
+      return `
+        <div class="lad" style="--i:${i};--h:${h}%">
+          <div class="lad-bar"><span></span></div>
+          <div class="lad-v">${v}</div>
+        </div>`;
+    })
+    .join('');
+  return `
+    <div class="ladder">
+      ${cells}
+      ${opts.note ? `<div class="lad-note">${opts.note}</div>` : ''}
+    </div>`;
+}
+
+// 10進数の位取りを分解して見せる（347 = 300 + 40 + 7）
+function decimalBreak(num) {
+  const digits = String(num).split('');
+  const n = digits.length;
+  const rows = digits
+    .map((d, i) => {
+      const w = Math.pow(10, n - 1 - i);
+      return `
+        <div class="dec-row" style="--i:${i}">
+          <span class="dec-d">${d}</span>
+          <span class="dec-x">×</span>
+          <span class="dec-w">${w}</span>
+          <span class="dec-eq">=</span>
+          <span class="dec-v">${Number(d) * w}</span>
+        </div>`;
+    })
+    .join('');
+  return `
+    <div class="dec-break">
+      ${rows}
+      <div class="dec-sum" style="--i:${n}">合計 ${num}</div>
+    </div>`;
+}
+
+// バイトとビットの大きさの違い（1バイト＝8ビット）
+function byteBit() {
+  const bits = Array.from({ length: 8 }, (_, i) => `<span class="bb-bit" style="--i:${i}"></span>`).join('');
+  return `
+    <div class="bytebit">
+      <div class="bb-side">
+        <div class="bb-label">1バイト</div>
+        <div class="bb-box byte">B</div>
+      </div>
+      <div class="bb-eq">=</div>
+      <div class="bb-side">
+        <div class="bb-label">8ビット</div>
+        <div class="bb-box bits">${bits}</div>
+      </div>
+    </div>`;
+}
+
+// 帯グラフで「送るデータ量」と「1秒で送れる量」を比べる
+function pipe(dataMbit, speedMbps) {
+  const sec = dataMbit / speedMbps;
+  const chunks = Array.from(
+    { length: Math.min(Math.round(sec), 12) },
+    (_, i) => `<span class="pp-chunk" style="--i:${i}"></span>`
+  ).join('');
+  return `
+    <div class="pipe">
+      <div class="pp-line"><span class="pp-label">送るデータ</span><b>${dataMbit} Mビット</b></div>
+      <div class="pp-line"><span class="pp-label">1秒で送れる量</span><b>${speedMbps} Mビット</b></div>
+      <div class="pp-track">${chunks}</div>
+      <div class="pp-foot">1秒ぶんの塊が <b>${sec}</b> 個 → <b>${sec}秒</b></div>
+    </div>`;
+}
+
+// ---------------------------------------------------------------------
+// 登録表
+// ---------------------------------------------------------------------
+//
+// レッスン本文からは、この名前で呼ぶ。
+// 存在しない名前が来たら「図なし」として静かに無視する（本文は必ず読める）。
+
+const VISUALS = {
+  // --- 2進数 ---
+  'lamp-switch': () => lampRow('10110'),
+  'dec-347': () => decimalBreak(347),
+  'ladder-2x': () =>
+    ladder([1, 2, 4, 8, 16, 32, 64, 128], { note: '左へ1桁ごとに2倍' }),
+  'bits-1011': () => bitRow('1011', { sum: true }),
+  'bits-weights': () => bitRow('00000000'),
+
+  // --- 伝送時間 ---
+  'byte-bit': () => byteBit(),
+  'pipe-80-20': () => pipe(80, 20),
+
+  // --- 稼働率 ---
+  'chain-serial': () => `
+    <div class="chain">
+      <div class="ch-node" style="--i:0">装置A</div>
+      <div class="ch-link" style="--i:1"></div>
+      <div class="ch-node" style="--i:2">装置B</div>
+      <div class="ch-cap" style="--i:3">どちらか1つ止まれば、全体が止まる</div>
+    </div>`,
+  'chain-parallel': () => `
+    <div class="chain parallel">
+      <div class="ch-branch">
+        <div class="ch-node" style="--i:0">装置A</div>
+        <div class="ch-node" style="--i:1">装置B</div>
+      </div>
+      <div class="ch-cap" style="--i:2">どちらか1つ動いていれば、全体は動く</div>
+    </div>`,
+};
+
+// 図のHTMLを返す。未定義なら空文字（本文だけが出る）。
+function visualHtml(name) {
+  const fn = VISUALS[name];
+  if (!fn) return '';
+  return `<div class="lv" data-v="${name}">${fn()}</div>`;
+}
+
+// 検証用：定義済みの図の名前一覧
+function visualNames() {
+  return Object.keys(VISUALS);
+}
+
 // ===== src/learn/app.js ==========================================
 // 「はじめから」モードの画面。
 //
@@ -5125,6 +5752,7 @@ function getLesson(id) {
 //
 // 「間違い＝罰」にしないための作りなので、成績（store の stats）には一切書かない。
 // 記録するのは「どのレッスンをどこまで進んだか」だけ。
+
 
 
 // ui/app.js と同名にすると単一スコープで衝突するため、learn層は接頭辞を付ける
@@ -5177,6 +5805,15 @@ const view = {
 
 function host() {
   return $l('#learn-host');
+}
+
+// 「3 / 5」という数字より、点が埋まっていくほうが進み具合が体感しやすい。
+function dotsHtml(total, at) {
+  const dots = Array.from({ length: total }, (_, i) => {
+    const cls = i < at ? 'done' : i === at ? 'now' : '';
+    return `<span class="rd ${cls}"></span>`;
+  }).join('');
+  return `${dots}<span class="rd-num">${at + 1} / ${total}</span>`;
 }
 
 // =======================================================================
@@ -5290,10 +5927,13 @@ function renderRead() {
   const pageData = l.read[view.page];
   const last = view.page === total - 1;
 
+  // ページ番号を data 属性で持たせ、ページごとに見出しの色みを変える。
+  // 「さっきと同じ画面に見える」対策で、番号が変われば必ず見た目が変わる。
   host().innerHTML = frame(`
-    <div class="read-page">
-      <div class="read-count">${view.page + 1} / ${total}</div>
+    <div class="read-page enter" data-page="${view.page % 4}">
+      <div class="read-dots">${dotsHtml(total, view.page)}</div>
       <h3>${lesc(pageData.h)}</h3>
+      ${pageData.v ? visualHtml(pageData.v) : ''}
       <div class="read-body">${md(pageData.b)}</div>
     </div>
     <div class="row" style="margin-top:18px">
@@ -5330,7 +5970,7 @@ function renderWalk() {
 
   if (finished) {
     host().innerHTML = frame(`
-      <div class="walk-wrap">
+      <div class="walk-wrap enter">
         <div class="walk-q">${md(w.question)}</div>
         <div class="ex trap" style="margin-top:16px">
           <h4><span class="ex-icon" aria-hidden="true">✓</span>まとめ</h4>
@@ -5353,11 +5993,11 @@ function renderWalk() {
   }
 
   host().innerHTML = frame(`
-    <div class="walk-wrap">
+    <div class="walk-wrap enter">
       ${view.walkStep === 0 ? `<div class="walk-intro">${md(w.intro)}</div>` : ''}
       <div class="walk-q">${md(w.question)}</div>
-      <div class="walk-step">
-        <div class="ws-count">ステップ ${view.walkStep + 1} / ${total}</div>
+      <div class="walk-step enter" data-step="${view.walkStep}">
+        <div class="ws-count"><b>ステップ</b>${dotsHtml(total, view.walkStep)}</div>
         <div class="ws-ask">${md(s.ask)}</div>
         <div class="choices" id="walk-choices"></div>
         <div class="row" style="margin-top:10px">
@@ -5417,7 +6057,7 @@ function renderTry() {
   const t = l.try[view.tryIndex];
 
   host().innerHTML = frame(`
-    <div class="try-wrap">
+    <div class="try-wrap enter">
       <div class="try-count">${view.tryIndex + 1} 問目 / ${total}</div>
       <div class="try-q">${md(t.q)}</div>
       <div class="try-hint"><b>ヒント</b><br>${md(t.hint)}</div>
@@ -5504,7 +6144,7 @@ function renderDone() {
   const nextLesson = LESSONS[idx + 1];
 
   host().innerHTML = frame(`
-    <div class="done-wrap">
+    <div class="done-wrap enter">
       <div class="done-mark">修了</div>
       <div class="done-body">${md(l.done)}</div>
       <div class="done-actions">
@@ -5786,8 +6426,22 @@ function renderExplain(blocks) {
 // 解説中の数値表示。桁が多いときだけ丸める（元の値を壊さない範囲で）。
 function fmtStepValue(v) {
   if (typeof v !== 'number') return String(v);
+  if (!Number.isFinite(v)) return String(v);
   if (Number.isInteger(v)) return v.toLocaleString('ja-JP');
-  return String(Math.round(v * 10000) / 10000);
+
+  // 極端に小さい値をそのまま String() に渡すと "5e-7" になる。
+  // 初学者にはこの表記自体が読めないので、必ず小数で書き下す。
+  // （ページフォールト率の解説で実際に 5e-7 が出ていた）
+  const abs = Math.abs(v);
+  if (abs < 0.01) {
+    // 有効数字が消えない桁数まで伸ばす。toFixed は指数表記にならない
+    const digits = Math.min(12, Math.ceil(-Math.log10(abs)) + 2);
+    return v.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+  }
+
+  // 4桁で丸めたうえで、桁区切りを入れる（12345.6789 → 12,345.6789）
+  const r = Math.round(v * 10000) / 10000;
+  return r.toLocaleString('ja-JP', { maximumFractionDigits: 4 });
 }
 
 // --- 成績 ---------------------------------------------------------------

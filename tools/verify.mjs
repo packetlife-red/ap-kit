@@ -14,6 +14,22 @@ import { allGenerators, generate } from '../src/core/generators/index.js';
 // 200回では検出できていなかった（利用者は250〜1000問で1回踏む頻度）。
 const ITERATIONS = 5000;
 
+// ui/app.js の fmtStepValue と同じ実装。
+// あちらは DOM 層なので import できないため、表示の検査用にここへ複製している。
+// 片方だけ直すと検査が意味を失うので、変更時は必ず両方を合わせること。
+function fmtStepValue(v) {
+  if (typeof v !== 'number') return String(v);
+  if (!Number.isFinite(v)) return String(v);
+  if (Number.isInteger(v)) return v.toLocaleString('ja-JP');
+  const abs = Math.abs(v);
+  if (abs < 0.01) {
+    const digits = Math.min(12, Math.ceil(-Math.log10(abs)) + 2);
+    return v.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+  }
+  const r = Math.round(v * 10000) / 10000;
+  return r.toLocaleString('ja-JP', { maximumFractionDigits: 4 });
+}
+
 let failures = 0;
 let checks = 0;
 
@@ -163,6 +179,40 @@ for (const g of gens) {
           g.id,
           seed,
           `選択肢の大きな数に桁区切りがない: ${s}`
+        );
+      }
+    }
+
+    // 10b. 指数表記（5e-7 のような形）がどこにも出ていないこと。
+    //      初学者にはこの表記自体が読めない。実際にページフォールト率の解説で
+    //      steps の値が "5e-7" と表示されていた（UI側の丸めが原因）。
+    //      問題文・ヒント・選択肢・解説本文・stepsの値まで、まとめて見る。
+    {
+      const texts = [q.question, q.hint || '', ...q.choices.map(String)];
+      for (const st of q.steps || []) {
+        texts.push(String(st.expr || ''));
+        // step の値は UI 側の fmtStepValue を通してから画面に出る。
+        // 検査すべきは生値ではなく「利用者が実際に見る文字列」なので、
+        // 同じ整形を通した結果を見る（この関数は ui/app.js と同じ実装）。
+        if (st.value !== null && st.value !== undefined) {
+          const shown = fmtStepValue(st.value);
+          texts.push(shown);
+          // 0 でない値が "0" と表示されたら、丸めで情報が消えている
+          assert(
+            !(st.value !== 0 && /^-?0$/.test(shown)),
+            g.id,
+            seed,
+            `解説の値が丸めで消えている: ${st.value} が "${shown}" と表示される`
+          );
+        }
+      }
+      for (const b of q.explain || []) texts.push(String(b.body || ''));
+      for (const t of texts) {
+        assert(
+          !/\d[eE][+-]\d/.test(t),
+          g.id,
+          seed,
+          `指数表記が露出している（初学者に読めない）: ${t.slice(0, 70)}`
         );
       }
     }
