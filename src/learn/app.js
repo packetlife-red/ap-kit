@@ -9,7 +9,7 @@
 // 記録するのは「どのレッスンをどこまで進んだか」だけ。
 
 import { LESSONS, getLesson } from './lessons.js';
-import { visualHtml } from './visuals.js';
+import { visualHtml, visualMount } from './visuals.js';
 import { store } from '../core/store.js';
 
 // ui/app.js と同名にすると単一スコープで衝突するため、learn層は接頭辞を付ける
@@ -199,6 +199,12 @@ function renderRead() {
       <button class="btn primary" id="read-next">${last ? '一緒に解いてみる →' : '次へ'}</button>
     </div>
   `);
+
+  // 触れる図はここで動き出す（見るだけの図では何も起きない）
+  if (pageData.v) {
+    const box = host().querySelector('.lv');
+    if (box) visualMount(pageData.v, box);
+  }
 
   const prev = $l('#read-prev');
   if (prev) prev.addEventListener('click', () => { view.page--; render(); });

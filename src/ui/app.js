@@ -273,6 +273,83 @@ function fmtStepValue(v) {
 
 // --- 成績 ---------------------------------------------------------------
 
+// 間違えた問題の一覧。
+//
+// seed を保存してあるので、押せば**同じ数字の問題が完全に再現**できる。
+// 「解いたきり」で終わらせず、間違えたものだけを潰しに戻れるようにする。
+//
+// 解き直して正解すると recent から消える（recordAnswer が ok:true を積むため、
+// ここでは「その seed の最新の記録が誤答か」だけを見る）。
+function renderMisses(stats, gens) {
+  const box = $('#stats-misses');
+  if (!box) return;
+
+  const nameOf = {};
+  for (const g of gens) nameOf[g.id] = g.name;
+
+  // 同じ seed を何度も解いている場合、最新の結果だけを採用する。
+  // 解き直して正解したものが一覧に残り続けると、潰した実感が出ないため。
+  const items = [];
+  for (const id in stats) {
+    const seen = new Set();
+    for (const r of stats[id].recent || []) {
+      const key = id + ':' + r.seed;
+      if (seen.has(key)) continue; // recent は新しい順なので、最初に見たものが最新
+      seen.add(key);
+      if (!r.ok) items.push({ genId: id, seed: r.seed, ts: r.ts });
+    }
+  }
+
+  if (!items.length) {
+    box.innerHTML =
+      '<p class="muted" style="margin:0">まだ間違えた問題はありません。</p>';
+    return;
+  }
+
+  items.sort((a, b) => b.ts - a.ts);
+
+  box.innerHTML = `
+    <div class="miss-list">
+      ${items
+        .slice(0, 30)
+        .map(
+          (m) => `
+        <button class="miss" data-gen="${esc(m.genId)}" data-seed="${m.seed}">
+          <span class="miss-main">
+            <span class="miss-gen">${esc(nameOf[m.genId] || m.genId)}</span>
+            <span class="miss-when">${fmtWhen(m.ts)}</span>
+          </span>
+          <span class="miss-go">もう一度 →</span>
+        </button>`
+        )
+        .join('')}
+    </div>`;
+
+  box.querySelectorAll('.miss').forEach((b) => {
+    b.addEventListener('click', () => {
+      const genId = b.dataset.gen;
+      const seed = Number(b.dataset.seed);
+      // 分野の絞り込みは触らない。「この1問だけ解き直す」ためのボタンなので、
+      // ここでフィルタを書き換えると、次の問題から分野が変わってしまう。
+      nextQuestion({ genId, seed });
+      showTab('drill');
+    });
+  });
+}
+
+// 「いつ間違えたか」をざっくり出す。正確な時刻は要らない。
+function fmtWhen(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'たった今';
+  if (min < 60) return `${min}分前`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}時間前`;
+  const d = Math.floor(h / 24);
+  return `${d}日前`;
+}
+
 function renderStats() {
   const stats = getStats();
   const gens = allGenerators();
@@ -293,6 +370,8 @@ function renderStats() {
       }%</div></div>
     </div>
   `;
+
+  renderMisses(stats, gens);
 
   const rows = gens
     .map((g) => {

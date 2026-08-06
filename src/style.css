@@ -433,6 +433,33 @@ table.stats td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 .bar > span { display: block; height: 100%; background: var(--accent); }
 
+/* --- 間違えた問題の一覧 -------------------------------------------------- */
+
+.miss-list { display: grid; gap: 8px; }
+
+.miss {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--ng);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.miss:hover { border-color: var(--accent); border-left-color: var(--ng); background: var(--accent-weak); }
+
+.miss-main { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.miss-gen { font-size: 14.5px; font-weight: 600; }
+.miss-when { font-size: 12px; color: var(--muted); }
+.miss-go { flex: 0 0 auto; font-size: 13px; color: var(--accent); font-weight: 600; }
+
 /* --- はじめから（レッスン） -------------------------------------------- */
 
 .learn-intro h2 { font-size: 18px; margin: 0 0 10px; }
@@ -1115,6 +1142,72 @@ button.btn.subtle:hover { color: var(--text); }
   animation: lv-rise 0.4s ease-out both;
   animation-delay: calc(var(--i) * 0.14s);
 }
+
+/* --- 触れる2進数（bits-play） --------------------------------------------
+   見るだけの図と違い、押せることが見た目で分からないと誰も触らない。
+   影と拡大で「ボタンである」ことを示し、押した瞬間に色が変わるようにする。 */
+
+.bitplay { display: grid; gap: 12px; }
+
+.bp-task {
+  text-align: center;
+  font-size: 14.5px;
+  color: var(--muted);
+}
+
+.bp-task b {
+  font-size: 22px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  margin-right: 2px;
+}
+
+.bp-row { justify-content: center; }
+
+/* ボタンとしての見た目。bit の見た目は継承しつつ、押せる感じを足す */
+button.bp-cell {
+  font: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.bp-cell .bit-b {
+  transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+button.bp-cell:hover .bit-b { transform: translateY(-2px); }
+button.bp-cell:active .bit-b { transform: translateY(1px); }
+
+/* 押されている桁（1）。bit.on と同じ見た目に揃える */
+button.bp-cell.on .bit-b {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+button.bp-cell.on .bit-w { color: var(--accent); font-weight: 700; }
+button.bp-cell.off .bit-b { opacity: 1; }
+
+.bp-sum {
+  text-align: center;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.9;
+}
+
+.bp-sum .bp-v {
+  font-size: 20px;
+  color: var(--ok);
+}
+
+.bp-msg { min-height: 1.6em; text-align: center; font-size: 14px; }
+.bp-msg.ok { color: var(--ok); font-weight: 700; }
+
+.bp-actions { margin-top: 2px; }
+.bp-actions .btn { font-size: 13px; padding: 7px 13px; }
 
 /* =======================================================================
    動きを減らす設定への配慮。

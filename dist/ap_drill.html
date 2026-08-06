@@ -444,6 +444,33 @@ table.stats td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 .bar > span { display: block; height: 100%; background: var(--accent); }
 
+/* --- 間違えた問題の一覧 -------------------------------------------------- */
+
+.miss-list { display: grid; gap: 8px; }
+
+.miss {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--ng);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.miss:hover { border-color: var(--accent); border-left-color: var(--ng); background: var(--accent-weak); }
+
+.miss-main { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.miss-gen { font-size: 14.5px; font-weight: 600; }
+.miss-when { font-size: 12px; color: var(--muted); }
+.miss-go { flex: 0 0 auto; font-size: 13px; color: var(--accent); font-weight: 600; }
+
 /* --- はじめから（レッスン） -------------------------------------------- */
 
 .learn-intro h2 { font-size: 18px; margin: 0 0 10px; }
@@ -1127,6 +1154,72 @@ button.btn.subtle:hover { color: var(--text); }
   animation-delay: calc(var(--i) * 0.14s);
 }
 
+/* --- 触れる2進数（bits-play） --------------------------------------------
+   見るだけの図と違い、押せることが見た目で分からないと誰も触らない。
+   影と拡大で「ボタンである」ことを示し、押した瞬間に色が変わるようにする。 */
+
+.bitplay { display: grid; gap: 12px; }
+
+.bp-task {
+  text-align: center;
+  font-size: 14.5px;
+  color: var(--muted);
+}
+
+.bp-task b {
+  font-size: 22px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  margin-right: 2px;
+}
+
+.bp-row { justify-content: center; }
+
+/* ボタンとしての見た目。bit の見た目は継承しつつ、押せる感じを足す */
+button.bp-cell {
+  font: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.bp-cell .bit-b {
+  transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+button.bp-cell:hover .bit-b { transform: translateY(-2px); }
+button.bp-cell:active .bit-b { transform: translateY(1px); }
+
+/* 押されている桁（1）。bit.on と同じ見た目に揃える */
+button.bp-cell.on .bit-b {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+button.bp-cell.on .bit-w { color: var(--accent); font-weight: 700; }
+button.bp-cell.off .bit-b { opacity: 1; }
+
+.bp-sum {
+  text-align: center;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.9;
+}
+
+.bp-sum .bp-v {
+  font-size: 20px;
+  color: var(--ok);
+}
+
+.bp-msg { min-height: 1.6em; text-align: center; font-size: 14px; }
+.bp-msg.ok { color: var(--ok); font-weight: 700; }
+
+.bp-actions { margin-top: 2px; }
+.bp-actions .btn { font-size: 13px; padding: 7px 13px; }
+
 /* =======================================================================
    動きを減らす設定への配慮。
    OS側で「視差効果を減らす」を有効にしている人には、動きを全部止める。
@@ -1226,11 +1319,20 @@ button.btn.subtle:hover { color: var(--text); }
       成績はこの端末の中だけに保存されます。どこにも送信されません。
     </p>
   </div>
+  <div class="panel">
+    <div class="row" style="margin-bottom:4px">
+      <strong style="font-size:14px">間違えた問題</strong>
+    </div>
+    <p class="muted" style="font-size:13px;margin:0 0 12px">
+      押すと<b>同じ数字のまま</b>もう一度出ます。解き直すと、この一覧から消えます。
+    </p>
+    <div id="stats-misses"></div>
+  </div>
 </section>
 
 <p class="muted" style="margin-top:28px;text-align:center;font-size:12px">
   出題は全問その場で自動生成しています（過去問の転載はありません）。<br>
-  build 20260807-0037（JST）
+  build 20260807-0637（JST）
 </p>
 
 </div>
@@ -5316,7 +5418,21 @@ const LESSONS = [
           '手順はいつも同じです。\n\n' +
           '　① 2進数の上に、右端を1として倍々に重みを書く\n' +
           '　② 1が立っている桁の重みだけを足す\n\n' +
-          '次のページから、実際に自分で読んでみます。',
+          '次のページで、実際に自分で組んでみましょう。',
+      },
+      {
+        h: '自分で作ってみる',
+        v: 'bits-play',
+        b:
+          '**桁をタップすると 0 と 1 が切り替わります。** 合計はその場で変わります。\n\n' +
+          'お題の数を作ってみてください。考え方は「**大きい重みから、入るか入らないかを決める**」。\n\n' +
+          'たとえば 10 なら、\n\n' +
+          '　8 は入る？ → 入る（残り 2）\n' +
+          '　4 は入る？ → 残り2なので入らない\n' +
+          '　2 は入る？ → 入る（残り 0）\n' +
+          '　1 は入る？ → 残り0なので入らない\n\n' +
+          'これで **1010**。10進数→2進数は、いつもこの手順です。\n\n' +
+          '何度でも触ってかまいません。**ここでの正誤は記録されません。**',
       },
     ],
 
@@ -5699,8 +5815,115 @@ function pipe(dataMbit, speedMbps) {
 // レッスン本文からは、この名前で呼ぶ。
 // 存在しない名前が来たら「図なし」として静かに無視する（本文は必ず読める）。
 
+// 触れる2進数。桁をタップして0/1を切り替えると、合計が即座に変わる。
+//
+// 見るだけの図との違いは「自分で作れる」こと。
+// 「10を作ってみて」と言われて自分で組めたときに、初めて手が覚える。
+// お題を出して、当たったらその場で褒める（採点はしない・記録もしない）。
+const bitsPlay = {
+  html() {
+    const cells = [8, 4, 2, 1]
+      .map(
+        (w, i) => `
+        <button type="button" class="bit bp-cell off" data-w="${w}" style="--i:${i}"
+                aria-pressed="false" aria-label="${w}の桁">
+          <span class="bit-w">${w}</span>
+          <span class="bit-b">0</span>
+        </button>`
+      )
+      .join('');
+    return `
+      <div class="bitplay">
+        <div class="bp-task" id="bp-task"></div>
+        <div class="bit-row bp-row" id="bp-row">${cells}</div>
+        <div class="bp-sum" id="bp-sum"></div>
+        <div class="bp-msg" id="bp-msg"></div>
+        <div class="row bp-actions">
+          <button type="button" class="btn subtle" id="bp-clear">ぜんぶ0に戻す</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="bp-next">別のお題</button>
+        </div>
+      </div>`;
+  },
+
+  mount(root) {
+    const q = (s) => root.querySelector(s);
+    const cells = Array.from(root.querySelectorAll('.bp-cell'));
+    if (!cells.length) return null;
+
+    // お題は暗算できる範囲だけ。0と15は「全部0／全部1」で当たってしまうので入れない。
+    const TASKS = [10, 5, 13, 6, 9, 12, 3, 7, 11, 14];
+    let taskIndex = 0;
+    let cleared = false;
+
+    function value() {
+      return cells.reduce(
+        (sum, c) => sum + (c.classList.contains('on') ? Number(c.dataset.w) : 0),
+        0
+      );
+    }
+
+    function render() {
+      const v = value();
+      const bits = cells.map((c) => (c.classList.contains('on') ? '1' : '0')).join('');
+      const parts = cells
+        .filter((c) => c.classList.contains('on'))
+        .map((c) => c.dataset.w);
+
+      q('#bp-sum').innerHTML = parts.length
+        ? `<b>${bits}</b> ＝ ${parts.join(' + ')} ＝ <b class="bp-v">${v}</b>`
+        : `<b>${bits}</b> ＝ <b class="bp-v">0</b>　<span class="muted">（1が1つも立っていない）</span>`;
+
+      const target = TASKS[taskIndex];
+      const msg = q('#bp-msg');
+      if (v === target && !cleared) {
+        cleared = true;
+        msg.className = 'bp-msg ok';
+        msg.textContent = `そのとおり。${target} は ${bits} です。`;
+      } else if (v !== target) {
+        cleared = false;
+        msg.className = 'bp-msg';
+        msg.textContent = '';
+      }
+    }
+
+    function setTask(i) {
+      taskIndex = i % TASKS.length;
+      cleared = false;
+      q('#bp-task').innerHTML = `<b>${TASKS[taskIndex]}</b> を2進数で作ってみてください`;
+      render();
+    }
+
+    cells.forEach((c) => {
+      c.addEventListener('click', () => {
+        const on = c.classList.toggle('on');
+        c.classList.toggle('off', !on);
+        c.setAttribute('aria-pressed', String(on));
+        c.querySelector('.bit-b').textContent = on ? '1' : '0';
+        render();
+      });
+    });
+
+    q('#bp-clear').addEventListener('click', () => {
+      cells.forEach((c) => {
+        c.classList.remove('on');
+        c.classList.add('off');
+        c.setAttribute('aria-pressed', 'false');
+        c.querySelector('.bit-b').textContent = '0';
+      });
+      render();
+    });
+
+    q('#bp-next').addEventListener('click', () => setTask(taskIndex + 1));
+
+    setTask(0);
+    return null; // タイマーを持たないので後始末は不要
+  },
+};
+
 const VISUALS = {
   // --- 2進数 ---
+  'bits-play': bitsPlay,
   'lamp-switch': () => lampRow('10110'),
   'dec-347': () => decimalBreak(347),
   'ladder-2x': () =>
@@ -5734,7 +5957,17 @@ const VISUALS = {
 function visualHtml(name) {
   const fn = VISUALS[name];
   if (!fn) return '';
-  return `<div class="lv" data-v="${name}">${fn()}</div>`;
+  const html = typeof fn === 'function' ? fn() : fn.html();
+  return `<div class="lv" data-v="${name}">${html}</div>`;
+}
+
+// 図に動きを付ける。
+// 触れる図（bits-play など）は mount を持ち、描画後に呼ぶ必要がある。
+// 見るだけの図は mount を持たないので、ここは何もしない。
+function visualMount(name, root) {
+  const fn = VISUALS[name];
+  if (!fn || typeof fn === 'function' || !fn.mount) return null;
+  return fn.mount(root) || null;
 }
 
 // 検証用：定義済みの図の名前一覧
@@ -5942,6 +6175,12 @@ function renderRead() {
       <button class="btn primary" id="read-next">${last ? '一緒に解いてみる →' : '次へ'}</button>
     </div>
   `);
+
+  // 触れる図はここで動き出す（見るだけの図では何も起きない）
+  if (pageData.v) {
+    const box = host().querySelector('.lv');
+    if (box) visualMount(pageData.v, box);
+  }
 
   const prev = $l('#read-prev');
   if (prev) prev.addEventListener('click', () => { view.page--; render(); });
@@ -6446,6 +6685,83 @@ function fmtStepValue(v) {
 
 // --- 成績 ---------------------------------------------------------------
 
+// 間違えた問題の一覧。
+//
+// seed を保存してあるので、押せば**同じ数字の問題が完全に再現**できる。
+// 「解いたきり」で終わらせず、間違えたものだけを潰しに戻れるようにする。
+//
+// 解き直して正解すると recent から消える（recordAnswer が ok:true を積むため、
+// ここでは「その seed の最新の記録が誤答か」だけを見る）。
+function renderMisses(stats, gens) {
+  const box = $('#stats-misses');
+  if (!box) return;
+
+  const nameOf = {};
+  for (const g of gens) nameOf[g.id] = g.name;
+
+  // 同じ seed を何度も解いている場合、最新の結果だけを採用する。
+  // 解き直して正解したものが一覧に残り続けると、潰した実感が出ないため。
+  const items = [];
+  for (const id in stats) {
+    const seen = new Set();
+    for (const r of stats[id].recent || []) {
+      const key = id + ':' + r.seed;
+      if (seen.has(key)) continue; // recent は新しい順なので、最初に見たものが最新
+      seen.add(key);
+      if (!r.ok) items.push({ genId: id, seed: r.seed, ts: r.ts });
+    }
+  }
+
+  if (!items.length) {
+    box.innerHTML =
+      '<p class="muted" style="margin:0">まだ間違えた問題はありません。</p>';
+    return;
+  }
+
+  items.sort((a, b) => b.ts - a.ts);
+
+  box.innerHTML = `
+    <div class="miss-list">
+      ${items
+        .slice(0, 30)
+        .map(
+          (m) => `
+        <button class="miss" data-gen="${esc(m.genId)}" data-seed="${m.seed}">
+          <span class="miss-main">
+            <span class="miss-gen">${esc(nameOf[m.genId] || m.genId)}</span>
+            <span class="miss-when">${fmtWhen(m.ts)}</span>
+          </span>
+          <span class="miss-go">もう一度 →</span>
+        </button>`
+        )
+        .join('')}
+    </div>`;
+
+  box.querySelectorAll('.miss').forEach((b) => {
+    b.addEventListener('click', () => {
+      const genId = b.dataset.gen;
+      const seed = Number(b.dataset.seed);
+      // 分野の絞り込みは触らない。「この1問だけ解き直す」ためのボタンなので、
+      // ここでフィルタを書き換えると、次の問題から分野が変わってしまう。
+      nextQuestion({ genId, seed });
+      showTab('drill');
+    });
+  });
+}
+
+// 「いつ間違えたか」をざっくり出す。正確な時刻は要らない。
+function fmtWhen(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'たった今';
+  if (min < 60) return `${min}分前`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}時間前`;
+  const d = Math.floor(h / 24);
+  return `${d}日前`;
+}
+
 function renderStats() {
   const stats = getStats();
   const gens = allGenerators();
@@ -6466,6 +6782,8 @@ function renderStats() {
       }%</div></div>
     </div>
   `;
+
+  renderMisses(stats, gens);
 
   const rows = gens
     .map((g) => {

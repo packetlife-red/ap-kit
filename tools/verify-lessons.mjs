@@ -40,6 +40,26 @@ assert(LESSONS.length > 0, 'all', 'レッスンが1つもない');
 
 const seenIds = new Set();
 
+// --- 触れる図（mount を持つもの）の健全性 ---
+// お題として出す数が「4桁の2進数で作れる範囲」に収まっているか。
+// 16以上や負の数を混ぜると、どう押しても正解にならず利用者が詰む。
+// また 0 と 15 は「全部0／全部1」で偶然当たるので、お題に向かない。
+{
+  // bits-play のお題は visuals.js 内に閉じているため、
+  // ここでは HTML から桁の重みを読み、4桁ぶんの表現範囲だけを確認する。
+  const html = visualHtml('bits-play');
+  const ws = (html.match(/data-w="(\d+)"/g) || []).map((m) => Number(m.match(/\d+/)[0]));
+  assert(ws.length === 4, 'visual:bits-play', `桁が4つでない（${ws.length}）`);
+  assert(
+    ws.join(',') === '8,4,2,1',
+    'visual:bits-play',
+    `重みが左から 8,4,2,1 でない: ${ws.join(',')}（図と本文の説明がずれる）`
+  );
+  // 初期状態は全部0であること（お題を出す前に正解になっていたら意味がない）
+  const zeros = (html.match(/class="bit-b">0</g) || []).length;
+  assert(zeros === 4, 'visual:bits-play', '初期状態が全部0になっていない');
+}
+
 // --- 図そのものの健全性 ---
 // 登録済みの図が、実際にHTMLを返すか。空を返すと本文だけになり、
 // 「図を入れたつもりが出ていない」に気づけない。

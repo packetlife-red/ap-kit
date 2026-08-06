@@ -140,8 +140,115 @@ function pipe(dataMbit, speedMbps) {
 // レッスン本文からは、この名前で呼ぶ。
 // 存在しない名前が来たら「図なし」として静かに無視する（本文は必ず読める）。
 
+// 触れる2進数。桁をタップして0/1を切り替えると、合計が即座に変わる。
+//
+// 見るだけの図との違いは「自分で作れる」こと。
+// 「10を作ってみて」と言われて自分で組めたときに、初めて手が覚える。
+// お題を出して、当たったらその場で褒める（採点はしない・記録もしない）。
+const bitsPlay = {
+  html() {
+    const cells = [8, 4, 2, 1]
+      .map(
+        (w, i) => `
+        <button type="button" class="bit bp-cell off" data-w="${w}" style="--i:${i}"
+                aria-pressed="false" aria-label="${w}の桁">
+          <span class="bit-w">${w}</span>
+          <span class="bit-b">0</span>
+        </button>`
+      )
+      .join('');
+    return `
+      <div class="bitplay">
+        <div class="bp-task" id="bp-task"></div>
+        <div class="bit-row bp-row" id="bp-row">${cells}</div>
+        <div class="bp-sum" id="bp-sum"></div>
+        <div class="bp-msg" id="bp-msg"></div>
+        <div class="row bp-actions">
+          <button type="button" class="btn subtle" id="bp-clear">ぜんぶ0に戻す</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="bp-next">別のお題</button>
+        </div>
+      </div>`;
+  },
+
+  mount(root) {
+    const q = (s) => root.querySelector(s);
+    const cells = Array.from(root.querySelectorAll('.bp-cell'));
+    if (!cells.length) return null;
+
+    // お題は暗算できる範囲だけ。0と15は「全部0／全部1」で当たってしまうので入れない。
+    const TASKS = [10, 5, 13, 6, 9, 12, 3, 7, 11, 14];
+    let taskIndex = 0;
+    let cleared = false;
+
+    function value() {
+      return cells.reduce(
+        (sum, c) => sum + (c.classList.contains('on') ? Number(c.dataset.w) : 0),
+        0
+      );
+    }
+
+    function render() {
+      const v = value();
+      const bits = cells.map((c) => (c.classList.contains('on') ? '1' : '0')).join('');
+      const parts = cells
+        .filter((c) => c.classList.contains('on'))
+        .map((c) => c.dataset.w);
+
+      q('#bp-sum').innerHTML = parts.length
+        ? `<b>${bits}</b> ＝ ${parts.join(' + ')} ＝ <b class="bp-v">${v}</b>`
+        : `<b>${bits}</b> ＝ <b class="bp-v">0</b>　<span class="muted">（1が1つも立っていない）</span>`;
+
+      const target = TASKS[taskIndex];
+      const msg = q('#bp-msg');
+      if (v === target && !cleared) {
+        cleared = true;
+        msg.className = 'bp-msg ok';
+        msg.textContent = `そのとおり。${target} は ${bits} です。`;
+      } else if (v !== target) {
+        cleared = false;
+        msg.className = 'bp-msg';
+        msg.textContent = '';
+      }
+    }
+
+    function setTask(i) {
+      taskIndex = i % TASKS.length;
+      cleared = false;
+      q('#bp-task').innerHTML = `<b>${TASKS[taskIndex]}</b> を2進数で作ってみてください`;
+      render();
+    }
+
+    cells.forEach((c) => {
+      c.addEventListener('click', () => {
+        const on = c.classList.toggle('on');
+        c.classList.toggle('off', !on);
+        c.setAttribute('aria-pressed', String(on));
+        c.querySelector('.bit-b').textContent = on ? '1' : '0';
+        render();
+      });
+    });
+
+    q('#bp-clear').addEventListener('click', () => {
+      cells.forEach((c) => {
+        c.classList.remove('on');
+        c.classList.add('off');
+        c.setAttribute('aria-pressed', 'false');
+        c.querySelector('.bit-b').textContent = '0';
+      });
+      render();
+    });
+
+    q('#bp-next').addEventListener('click', () => setTask(taskIndex + 1));
+
+    setTask(0);
+    return null; // タイマーを持たないので後始末は不要
+  },
+};
+
 const VISUALS = {
   // --- 2進数 ---
+  'bits-play': bitsPlay,
   'lamp-switch': () => lampRow('10110'),
   'dec-347': () => decimalBreak(347),
   'ladder-2x': () =>
@@ -175,7 +282,17 @@ const VISUALS = {
 export function visualHtml(name) {
   const fn = VISUALS[name];
   if (!fn) return '';
-  return `<div class="lv" data-v="${name}">${fn()}</div>`;
+  const html = typeof fn === 'function' ? fn() : fn.html();
+  return `<div class="lv" data-v="${name}">${html}</div>`;
+}
+
+// 図に動きを付ける。
+// 触れる図（bits-play など）は mount を持ち、描画後に呼ぶ必要がある。
+// 見るだけの図は mount を持たないので、ここは何もしない。
+export function visualMount(name, root) {
+  const fn = VISUALS[name];
+  if (!fn || typeof fn === 'function' || !fn.mount) return null;
+  return fn.mount(root) || null;
 }
 
 // 検証用：定義済みの図の名前一覧
