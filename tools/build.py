@@ -305,6 +305,12 @@ def main():
             with open(src_path, 'rb') as rf, open(os.path.join(docs, name), 'wb') as wf:
                 wf.write(rf.read())
 
+    # Jekyll の処理を丸ごと飛ばす。
+    # 素のHTMLしか置かないので Jekyll を通す意味がなく、通すと
+    # アンダースコア始まりのファイルが無視されるなどの事故だけが増える。
+    with open(os.path.join(docs, '.nojekyll'), 'w') as f:
+        f.write('')
+
     size_kb = os.path.getsize(out_html) / 1024
     print(f'ビルド完了: dist/index.html ＋ dist/ap_drill.html  ({size_kb:.0f} KB, {len(collect(ENTRY))} ファイルを結合)')
     print(f'  docs/ にも複製（GitHub Pages 用）')
